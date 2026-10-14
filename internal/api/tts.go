@@ -133,7 +133,7 @@ func (s *server) buatAudioTTS(w http.ResponseWriter, r *http.Request) {
 	}
 	tmp, durasi, err := s.simpanSementara(r, data)
 	if err != nil {
-		s.tulisErrorData(w, err)
+		s.tulisErrorAudio(w, err)
 		return
 	}
 	namaFile := namaFileTTS()
@@ -178,12 +178,17 @@ func (s *server) ubahAudioTTS(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	tmp, durasi, err := s.simpanSementara(r, data)
+	tujuan, err := s.pathAudio(a)
 	if err != nil {
-		s.tulisErrorData(w, err)
+		tulisError(w, http.StatusNotFound, "data tidak ditemukan")
 		return
 	}
-	if err := os.Rename(tmp, s.pathAudio(a)); err != nil {
+	tmp, durasi, err := s.simpanSementara(r, data)
+	if err != nil {
+		s.tulisErrorAudio(w, err)
+		return
+	}
+	if err := os.Rename(tmp, tujuan); err != nil {
 		os.Remove(tmp)
 		s.tulisErrorData(w, err)
 		return

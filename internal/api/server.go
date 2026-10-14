@@ -3,12 +3,15 @@ package api
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"io/fs"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"belsekolah/internal/auth"
@@ -45,16 +48,38 @@ type Deps struct {
 	DurasiAudio func(ctx context.Context, path string) (int64, error) // durasi ms; error jika bukan audio
 	MulaiUlang  func()                                                // dipanggil setelah restore disiapkan
 	TTS         PembuatTTS                                            // nil = TTS tidak tersedia
+
+	// SiapkanRestore menyiapkan restore; nil = backup.Siapkan. Hook untuk pengujian.
+	SiapkanRestore func(ctx context.Context, zipPath, dataDir string) error
+	// LookPath mencari program di PATH; nil = exec.LookPath.
+	LookPath func(nama string) (string, error)
 }
+
+// Status restore pada server.
+const (
+	restoreIdle   int32 = iota
+	restoreProses       // restore sedang diproses
+	restoreSiap         // restore sudah disiapkan; aplikasi akan dimulai ulang
+)
 
 type server struct {
 	Deps
+	boot    string       // acak per proses; berubah berarti aplikasi sudah dimulai ulang
+	restore atomic.Int32 // restoreIdle / restoreProses / restoreSiap
+}
+
+func idBoot() string {
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		panic(err) // crypto/rand tidak pernah gagal pada OS yang didukung
+	}
+	return hex.EncodeToString(b)
 }
 
 const namaCookie = "sesi"
 
 func New(d Deps) http.Handler {
-	s := &server{Deps: d}
+	s := &server{Deps: d, boot: idBoot()}
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /api/login", s.login)
@@ -76,7 +101,7 @@ func New(d Deps) http.Handler {
 		tulisError(w, http.StatusNotFound, "alamat API tidak dikenal")
 	})
 	mux.Handle("/", s.ui())
-	return s.pulihkanPanic(s.cekOrigin(mux))
+	return s.pulihkanPanic(s.headerAman(s.blokirSaatRestore(s.cekOrigin(mux))))
 }
 
 // ubahData dipanggil setelah perubahan data berhasil agar penjadwal memuat ulang.
@@ -103,6 +128,33 @@ func (s *server) wajibLogin(h http.HandlerFunc, wajibPasswordBaru bool) http.Han
 			}
 		}
 		h(w, r)
+	})
+}
+
+// headerAman menambah header pengaman ke setiap respons.
+func (s *server) headerAman(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// blokirSaatRestore menolak semua permintaan pengubah data (kecuali login/logout)
+// setelah restore disiapkan, supaya tidak ada perubahan yang hilang saat aplikasi dimulai ulang.
+func (s *server) blokirSaatRestore(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.restore.Load() == restoreSiap {
+			switch r.Method {
+			case http.MethodGet, http.MethodHead:
+			default:
+				if r.URL.Path != "/api/login" && r.URL.Path != "/api/logout" {
+					tulisError(w, http.StatusServiceUnavailable, "aplikasi sedang dimulai ulang untuk menerapkan restore")
+					return
+				}
+			}
+		}
+		next.ServeHTTP(w, r)
 	})
 }
 

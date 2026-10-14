@@ -35,6 +35,16 @@ func (s *server) unduhBackup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) pulihkan(w http.ResponseWriter, r *http.Request) {
+	if !s.restore.CompareAndSwap(restoreIdle, restoreProses) {
+		tulisError(w, http.StatusConflict, "restore sedang diproses")
+		return
+	}
+	disiapkan := false
+	defer func() {
+		if !disiapkan {
+			s.restore.Store(restoreIdle)
+		}
+	}()
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<30)
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		tulisError(w, http.StatusBadRequest, "file backup terlalu besar atau form tidak valid")
@@ -63,7 +73,11 @@ func (s *server) pulihkan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := backup.Siapkan(r.Context(), tmp.Name(), s.DataDir); err != nil {
+	siapkan := backup.Siapkan
+	if s.SiapkanRestore != nil {
+		siapkan = s.SiapkanRestore
+	}
+	if err := siapkan(r.Context(), tmp.Name(), s.DataDir); err != nil {
 		if errors.Is(err, backup.ErrBackupTidakValid) {
 			tulisError(w, http.StatusBadRequest, err.Error())
 			return
@@ -71,6 +85,8 @@ func (s *server) pulihkan(w http.ResponseWriter, r *http.Request) {
 		s.tulisErrorData(w, err)
 		return
 	}
+	disiapkan = true
+	s.restore.Store(restoreSiap)
 	s.Log.Warn("restore disiapkan, aplikasi akan dimulai ulang")
 	tulisPesan(w, http.StatusAccepted, "backup diterima, aplikasi dimulai ulang dalam beberapa detik")
 	if s.MulaiUlang != nil {

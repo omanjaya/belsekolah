@@ -11,13 +11,21 @@ import (
 	"strings"
 
 	"belsekolah/internal/player"
+	"belsekolah/internal/sistem"
 	"belsekolah/internal/store"
 )
 
 const batasUnggahAudio = 20 << 20
 
-func (s *server) pathAudio(a store.Audio) string {
-	return filepath.Join(s.AudioDir, filepath.Base(a.File))
+var errNamaFileAudio = errors.New("nama file audio tidak valid")
+
+// pathAudio memetakan nama file audio ke path di AudioDir; nama kosong atau "."/".." ditolak.
+func (s *server) pathAudio(a store.Audio) (string, error) {
+	b := filepath.Base(a.File)
+	if a.File == "" || b == "" || b == "." || b == ".." || b == string(filepath.Separator) {
+		return "", errNamaFileAudio
+	}
+	return filepath.Join(s.AudioDir, b), nil
 }
 
 func (s *server) listAudio(w http.ResponseWriter, r *http.Request) {
@@ -40,6 +48,18 @@ func (s *server) kirimAudio(w http.ResponseWriter, r *http.Request, id int64, ko
 		return
 	}
 	tulisJSON(w, kode, keAudioDTO(a))
+}
+
+// tulisErrorAudio memetakan error pemeriksaan audio (ffprobe) ke kode HTTP.
+func (s *server) tulisErrorAudio(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, sistem.ErrBukanAudio):
+		tulisError(w, http.StatusBadRequest, "file bukan audio yang valid")
+	case errors.Is(err, sistem.ErrFfprobeTidakAda):
+		tulisError(w, http.StatusServiceUnavailable, "program ffprobe belum terpasang")
+	default:
+		s.tulisErrorData(w, err)
+	}
 }
 
 func namaAcak(ext string) string {
@@ -95,7 +115,7 @@ func (s *server) unggahAudio(w http.ResponseWriter, r *http.Request) {
 
 	durasi, err := s.DurasiAudio(r.Context(), tmpPath)
 	if err != nil {
-		tulisError(w, http.StatusBadRequest, "file bukan audio yang valid")
+		s.tulisErrorAudio(w, err)
 		return
 	}
 	namaFile := namaAcak(ext)
@@ -145,7 +165,9 @@ func (s *server) hapusAudio(w http.ResponseWriter, r *http.Request) {
 		s.tulisErrorData(w, err)
 		return
 	}
-	if err := os.Remove(s.pathAudio(a)); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if pa, err := s.pathAudio(a); err != nil {
+		s.Log.Warn("nama file audio tidak valid, file dilewati", "file", a.File)
+	} else if err := os.Remove(pa); err != nil && !errors.Is(err, os.ErrNotExist) {
 		s.Log.Warn("gagal menghapus file audio", "file", a.File, "err", err)
 	}
 	s.ubahData()
@@ -162,7 +184,12 @@ func (s *server) fileAudio(w http.ResponseWriter, r *http.Request) {
 		s.tulisErrorData(w, err)
 		return
 	}
-	http.ServeFile(w, r, s.pathAudio(a))
+	pa, err := s.pathAudio(a)
+	if err != nil {
+		tulisError(w, http.StatusNotFound, "data tidak ditemukan")
+		return
+	}
+	http.ServeFile(w, r, pa)
 }
 
 // tesAudio memutar satu suara di speaker tanpa mencatat riwayat.
@@ -176,6 +203,11 @@ func (s *server) tesAudio(w http.ResponseWriter, r *http.Request) {
 		s.tulisErrorData(w, err)
 		return
 	}
-	s.Pemutar.Play(player.Permintaan{Files: []string{s.pathAudio(a)}, Prioritas: player.Tes})
+	pa, err := s.pathAudio(a)
+	if err != nil {
+		tulisError(w, http.StatusNotFound, "data tidak ditemukan")
+		return
+	}
+	s.Pemutar.Play(player.Permintaan{Files: []string{pa}, Prioritas: player.Tes})
 	tulisPesan(w, http.StatusAccepted, "suara diputar")
 }

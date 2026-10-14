@@ -101,6 +101,17 @@ type sistemDTO struct {
 	Sekarang  time.Time `json:"sekarang"`
 	IP        []string  `json:"ip"`
 	NTP       *bool     `json:"ntp"`
+
+	Boot           string  `json:"boot"`
+	Alat           alatDTO `json:"alat"`
+	RuangKosongMb  int64   `json:"ruangKosongMb"`
+	BackupTerakhir string  `json:"backupTerakhir"` // tanggal YYYY-MM-DD, kosong bila belum ada
+}
+
+type alatDTO struct {
+	Mpv     bool `json:"mpv"`
+	Ffprobe bool `json:"ffprobe"`
+	EdgeTTS bool `json:"edgeTts"`
 }
 
 func keProfilDTO(p store.Profil) profilDTO { return profilDTO{ID: p.ID, Nama: p.Nama} }

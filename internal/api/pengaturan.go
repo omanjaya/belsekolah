@@ -4,6 +4,11 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"os/exec"
+	"path/filepath"
+	"sort"
+	"strings"
+	"syscall"
 
 	"belsekolah/internal/store"
 )
@@ -72,5 +77,34 @@ func (s *server) sistem(w http.ResponseWriter, r *http.Request) {
 	if s.CekNTP != nil {
 		out.NTP = s.CekNTP()
 	}
+	out.Boot = s.boot
+	lp := s.LookPath
+	if lp == nil {
+		lp = exec.LookPath
+	}
+	ada := func(nama string) bool { _, err := lp(nama); return err == nil }
+	out.Alat = alatDTO{Mpv: ada("mpv"), Ffprobe: ada("ffprobe"), EdgeTTS: ada("edge-tts")}
+	out.RuangKosongMb = ruangKosongMB(s.DataDir)
+	out.BackupTerakhir = backupTerakhir(s.DataDir)
 	tulisJSON(w, http.StatusOK, out)
+}
+
+// ruangKosongMB mengembalikan ruang kosong (MB) pada volume folder data; -1 bila tidak terbaca.
+func ruangKosongMB(dir string) int64 {
+	var st syscall.Statfs_t
+	if err := syscall.Statfs(dir, &st); err != nil {
+		return -1
+	}
+	return int64(uint64(st.Bavail) * uint64(st.Bsize) / (1 << 20))
+}
+
+// backupTerakhir mengembalikan tanggal (YYYY-MM-DD) backup harian terbaru, atau kosong.
+func backupTerakhir(dataDir string) string {
+	nama, err := filepath.Glob(filepath.Join(dataDir, "backup", "bel-????-??-??.db"))
+	if err != nil || len(nama) == 0 {
+		return ""
+	}
+	sort.Strings(nama)
+	b := filepath.Base(nama[len(nama)-1])
+	return strings.TrimSuffix(strings.TrimPrefix(b, "bel-"), ".db")
 }

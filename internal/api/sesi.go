@@ -50,6 +50,12 @@ func (s *server) login(w http.ResponseWriter, r *http.Request) {
 	tulisJSON(w, http.StatusOK, map[string]bool{"wajibGantiPassword": wajib})
 }
 
+type sesiDTO struct {
+	Masuk              bool   `json:"masuk"`
+	WajibGantiPassword bool   `json:"wajibGantiPassword"`
+	Boot               string `json:"boot"`
+}
+
 func (s *server) sesi(w http.ResponseWriter, r *http.Request) {
 	masuk := false
 	if c, err := r.Cookie(namaCookie); err == nil {
@@ -63,7 +69,8 @@ func (s *server) sesi(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	tulisJSON(w, http.StatusOK, map[string]bool{"masuk": masuk, "wajibGantiPassword": wajib})
+	w.Header().Set("Cache-Control", "no-store")
+	tulisJSON(w, http.StatusOK, sesiDTO{Masuk: masuk, WajibGantiPassword: wajib, Boot: s.boot})
 }
 
 func (s *server) logout(w http.ResponseWriter, r *http.Request) {

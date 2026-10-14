@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -22,10 +21,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"belsekolah/internal/auth"
+	"belsekolah/internal/backup"
 	"belsekolah/internal/bawaan"
 	"belsekolah/internal/nada"
 	"belsekolah/internal/player"
 	"belsekolah/internal/scheduler"
+	"belsekolah/internal/sistem"
 	"belsekolah/internal/store"
 )
 
@@ -110,6 +111,10 @@ type lingkungan struct {
 	ntp        *bool
 	tts        *fakeTTS
 	mulaiUlang atomic.Int32
+
+	// Hook uji; diatur setelah siapkan() dan sebelum permintaan dikirim.
+	durasiHook  func(ctx context.Context, path string) (int64, error)
+	restoreHook func(ctx context.Context, zipPath, dataDir string) error
 }
 
 var ctx = context.Background()
@@ -123,7 +128,7 @@ func durasiPalsu(_ context.Context, path string) (int64, error) {
 	if bytes.HasPrefix(b, []byte("RIFF")) {
 		return 1500, nil
 	}
-	return 0, errors.New("file bukan audio yang valid")
+	return 0, sistem.ErrBukanAudio
 }
 
 func siapkan(t *testing.T) *lingkungan {
@@ -156,13 +161,24 @@ func siapkan(t *testing.T) *lingkungan {
 	h := New(Deps{
 		Store: st, Auth: au, Penjadwal: l.penjadwal, Pemutar: l.pemutar,
 		DataDir: l.dataDir, AudioDir: l.audioDir, Versi: "uji",
-		Web:         fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>Bel</title>")}, "app.js": {Data: []byte("js")}},
-		Log:         slog.New(slog.NewTextHandler(io.Discard, nil)),
-		Now:         func() time.Time { return l.now },
-		CekNTP:      func() *bool { return l.ntp },
-		DurasiAudio: durasiPalsu,
-		MulaiUlang:  func() { l.mulaiUlang.Add(1) },
-		TTS:         l.tts,
+		Web:    fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>Bel</title>")}, "app.js": {Data: []byte("js")}},
+		Log:    slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Now:    func() time.Time { return l.now },
+		CekNTP: func() *bool { return l.ntp },
+		DurasiAudio: func(c context.Context, p string) (int64, error) {
+			if l.durasiHook != nil {
+				return l.durasiHook(c, p)
+			}
+			return durasiPalsu(c, p)
+		},
+		SiapkanRestore: func(c context.Context, z, d string) error {
+			if l.restoreHook != nil {
+				return l.restoreHook(c, z, d)
+			}
+			return backup.Siapkan(c, z, d)
+		},
+		MulaiUlang: func() { l.mulaiUlang.Add(1) },
+		TTS:        l.tts,
 	})
 	l.srv = httptest.NewServer(h)
 	t.Cleanup(l.srv.Close)
