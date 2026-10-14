@@ -79,3 +79,23 @@ test('libur satu hari dan rentang', async ({ page }) => {
     await expect(page.getByText(ket)).toHaveCount(0)
   }
 })
+
+test('ubah nama profil ganda menampilkan galat di dalam dialog', async ({ page }) => {
+  await page.goto('/profil')
+  await page.getByRole('button', { name: /^Ubah nama/ }).first().click()
+  const modal = page.getByRole('dialog')
+  const nama = await modal.getByLabel('Nama profil').inputValue()
+  await page.getByRole('button', { name: 'Tutup' }).click()
+  await page.getByLabel('Nama profil baru').fill(nama + ' Dua')
+  await page.getByRole('button', { name: 'Tambah profil' }).click()
+  await expect(page.getByText('Profil ditambahkan')).toBeVisible()
+  const baris = page.getByRole('listitem').filter({ hasText: nama + ' Dua' })
+  await baris.getByRole('button', { name: 'Ubah nama' }).click()
+  await modal.getByLabel('Nama profil').fill(nama)
+  await modal.getByRole('button', { name: 'Simpan' }).click()
+  await expect(modal.getByRole('alert')).toContainText('sudah ada')
+  await modal.getByRole('button', { name: 'Tutup' }).click()
+  await baris.getByRole('button', { name: /^Hapus/ }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Hapus' }).click()
+  await expect(page.getByText(nama + ' Dua')).toHaveCount(0)
+})

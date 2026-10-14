@@ -22,8 +22,10 @@
   let periode = $state<Periode[]>([])
   let pengaturan = $state<Pengaturan>({ volume: 100, profilDefaultId: 0 })
   let hariIni = $state('')
+  let galatMuat = $state('')
 
   async function muat() {
+    galatMuat = ''
     try {
       const [p, per, pg, st] = await Promise.all([
         api.get<Profil[]>('/profil'),
@@ -36,7 +38,7 @@
       pengaturan = pg
       hariIni = st.tanggal
     } catch (e) {
-      galat(e)
+      galatMuat = e instanceof Error ? e.message : String(e)
     } finally {
       memuat = false
     }
@@ -66,7 +68,8 @@
 
   async function jadikanDefault(p: Profil) {
     try {
-      await api.put('/pengaturan', { volume: pengaturan.volume, profilDefaultId: p.id })
+      const terbaru = await api.get<Pengaturan>('/pengaturan')
+      await api.put('/pengaturan', { volume: terbaru.volume, profilDefaultId: p.id })
       beriTahu('Profil default diubah')
       await muat()
     } catch (err) {
@@ -89,15 +92,18 @@
   let ubahId = $state(0)
   let ubahNama = $state('')
   let sibukNama = $state(false)
+  let galatNama = $state('')
 
   function bukaUbahNama(p: Profil) {
     ubahId = p.id
     ubahNama = p.nama
+    galatNama = ''
     bukaNama = true
   }
 
   async function simpanNama(e: SubmitEvent) {
     e.preventDefault()
+    galatNama = ''
     sibukNama = true
     try {
       await api.put(`/profil/${ubahId}`, { nama: ubahNama })
@@ -105,7 +111,7 @@
       beriTahu('Nama profil disimpan')
       await muat()
     } catch (err) {
-      galat(err)
+      galatNama = err instanceof Error ? err.message : String(err)
     } finally {
       sibukNama = false
     }
@@ -125,7 +131,8 @@
     periodeId = p?.id ?? 0
     fMulai = p?.mulai ?? hariIni
     fSelesai = p?.selesai ?? hariIni
-    fProfil = p?.profilId ?? pengaturan.profilDefaultId ?? profil[0]?.id ?? 0
+    const adaDefault = profil.some((x) => x.id === pengaturan.profilDefaultId)
+    fProfil = p?.profilId ?? (adaDefault ? pengaturan.profilDefaultId : (profil[0]?.id ?? 0))
     fKet = p?.keterangan ?? ''
     galatPeriode = ''
     bukaPeriode = true
@@ -168,6 +175,11 @@
 
 {#if memuat}
   <Memuat />
+{:else if galatMuat}
+  <Kartu>
+    <p class="mb-3 text-red-700" role="alert">{galatMuat}</p>
+    <Tombol onclick={muat}>Coba lagi</Tombol>
+  </Kartu>
 {:else}
   <div class="grid gap-5 lg:grid-cols-2 lg:items-start">
     <Kartu>
@@ -248,6 +260,9 @@
     <Medan label="Nama profil" untuk="nama-profil">
       <input id="nama-profil" class={kelasInput} bind:value={ubahNama} required maxlength="60" />
     </Medan>
+    {#if galatNama}
+      <p class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{galatNama}</p>
+    {/if}
   </form>
   {#snippet aksi()}
     <Tombol varian="hantu" onclick={() => (bukaNama = false)}>Batal</Tombol>

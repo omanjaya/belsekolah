@@ -20,14 +20,16 @@
   let memuat = $state(true)
   let daftar = $state<Libur[]>([])
   let hariIni = $state('')
+  let galatMuat = $state('')
 
   async function muat() {
+    galatMuat = ''
     try {
       const [l, st] = await Promise.all([api.get<Libur[]>('/libur'), api.get<Status>('/status')])
       daftar = l
       hariIni = st.tanggal
     } catch (e) {
-      galat(e)
+      galatMuat = e instanceof Error ? e.message : String(e)
     } finally {
       memuat = false
     }
@@ -109,6 +111,11 @@
 
 {#if memuat}
   <Memuat />
+{:else if galatMuat}
+  <Kartu>
+    <p class="mb-3 text-red-700" role="alert">{galatMuat}</p>
+    <Tombol onclick={muat}>Coba lagi</Tombol>
+  </Kartu>
 {:else}
   <div class="flex flex-col gap-5">
     <Kartu>
@@ -138,7 +145,7 @@
 <Modal bind:buka judul={editId ? 'Ubah libur' : 'Tambah libur'}>
   <form id="form-libur" class="flex flex-col gap-3" onsubmit={simpan}>
     <label class="flex min-h-11 items-center gap-3 text-base">
-      <input type="checkbox" class="size-5 accent-blue-700" bind:checked={satuHari} />
+      <input type="checkbox" class="size-5 accent-blue-700" bind:checked={satuHari} onchange={() => { if (!satuHari && fSelesai < fMulai) fSelesai = fMulai }} />
       Hanya satu hari
     </label>
     <Medan label="Tanggal mulai" untuk="lib-mulai">
