@@ -233,7 +233,7 @@ Semua di bawah `/api`, body dan respons JSON (kecuali upload/unduh). Error: `{"e
 | `GET /sistem` | Versi, IP, zona waktu, jam, status NTP |
 | `GET /backup`, `POST /restore` (multipart zip) | Backup/restore; restore memulai ulang aplikasi |
 
-- Password awal dibuat acak saat database baru, dicetak ke log dan ditulis ke `<data>/password-awal.txt` (mode 0600, dihapus setelah diganti). Flag `-reset-password` membuat password acak baru lalu keluar.
+- Password awal dibuat acak saat database baru dan ditulis ke `<data>/password-awal.txt` (mode 0600, dihapus setelah diganti). Log hanya menyebut lokasi file, tidak pernah isi password. Flag `-reset-password` membuat password acak baru lalu keluar.
 - Sesi disimpan di memori (hilang saat aplikasi restart), kedaluwarsa 7 hari sejak terakhir dipakai.
 - Permintaan yang mengubah data wajib `Origin` sama dengan host (atau tanpa `Origin`), sebagai perlindungan CSRF tambahan selain `SameSite=Strict`.
 - Restore: aplikasi keluar dengan kode 3 setelah mengganti data; systemd/Docker memulainya lagi.
