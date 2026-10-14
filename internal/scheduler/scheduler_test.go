@@ -36,6 +36,7 @@ type fakeSumber struct {
 	data     schedule.Data
 	tercatat map[string]map[int64]bool
 	riwayat  []store.Riwayat
+	urutan   []store.Audio
 }
 
 func (f *fakeSumber) LoadDataJadwal(context.Context) (schedule.Data, error) {
@@ -62,6 +63,11 @@ func (f *fakeSumber) InsertRiwayat(_ context.Context, r store.Riwayat) error {
 }
 
 func (f *fakeSumber) UrutanBel(_ context.Context, jenisBelID int64) ([]store.Audio, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.urutan != nil {
+		return f.urutan, nil
+	}
 	return []store.Audio{{ID: 1, File: "ding.wav"}}, nil
 }
 
