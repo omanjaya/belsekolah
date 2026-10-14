@@ -25,35 +25,51 @@
   let semua = $state<Jadwal[]>([])
   let memuat = $state(true)
   let galatMuat = $state('')
+  let memuatDaftar = $state(false)
+  let galatDaftar = $state(false)
+  let urutMuat = 0
 
-  const hariIni = $derived(semua.filter((j) => j.hari === hari).sort((a, b) => a.jam.localeCompare(b.jam)))
+  const jam5 = (j: string) => j.slice(0, 5)
+  const hariIni = $derived(semua.filter((j) => j.hari === hari).sort((a, b) => jam5(a.jam).localeCompare(jam5(b.jam))))
   const jumlah = (h: number) => semua.filter((j) => j.hari === h).length
   const jenisPer = (id: number) => jenis.find((j) => j.id === id)
 
-  async function muatJadwal() {
+  async function muatJadwal(kosongkan = false) {
     if (!profilId) return
+    const no = ++urutMuat
+    if (kosongkan) {
+      semua = []
+      memuatDaftar = true
+    }
+    galatDaftar = false
     try {
-      semua = await api.get<Jadwal[]>(`/jadwal?profil=${profilId}`)
-      galatMuat = ''
+      const data = await api.get<Jadwal[]>(`/jadwal?profil=${profilId}`)
+      if (no !== urutMuat) return
+      semua = data
     } catch (e) {
-      galatMuat = e instanceof Error ? e.message : String(e)
+      if (no !== urutMuat) return
+      galatDaftar = true
+      galat(e)
+    } finally {
+      if (no === urutMuat) memuatDaftar = false
     }
   }
 
   onMount(async () => {
     try {
+      const stP = api.get<Status>('/status').catch(() => null)
       const [p, j, s, st] = await Promise.all([
         api.get<Profil[]>('/profil'),
         api.get<JenisBel[]>('/jenis-bel'),
         api.get<Pengaturan>('/pengaturan'),
-        api.get<Status>('/status'),
+        stP,
       ])
       profil = p
       jenis = j
       defaultId = s.profilDefaultId
       profilId = p.some((x) => x.id === s.profilDefaultId) ? s.profilDefaultId : (p[0]?.id ?? 0)
-      hari = st.hari >= 1 && st.hari <= 7 ? st.hari : 1
-      await muatJadwal()
+      if (st && st.hari >= 1 && st.hari <= 7) hari = st.hari
+      await muatJadwal(true)
     } catch (e) {
       galatMuat = e instanceof Error ? e.message : String(e)
     } finally {
@@ -81,7 +97,7 @@
 
   function bukaUbah(j: Jadwal) {
     ubahId = j.id
-    fJam = j.jam
+    fJam = jam5(j.jam)
     fJenis = j.jenisBelId
     fLabel = j.label
     galatForm = ''
@@ -95,7 +111,7 @@
     if (!fJenis) return (galatForm = 'Jenis bel wajib dipilih.')
     simpan = true
     try {
-      const data = { profilId, hari, jam: fJam, jenisBelId: fJenis, label: fLabel.trim() }
+      const data = { profilId, hari, jam: fJam.slice(0, 5), jenisBelId: fJenis, label: fLabel.trim() }
       if (ubahId === null) await api.post('/jadwal', data)
       else await api.put(`/jadwal/${ubahId}`, data)
       bukaForm = false
@@ -109,7 +125,7 @@
   }
 
   async function hapus(j: Jadwal) {
-    const ya = await konfirmasi('Hapus bel?', `Bel ${j.jam} pada hari ${NAMA_HARI[hari]} akan dihapus.`)
+    const ya = await konfirmasi('Hapus bel?', `Bel ${jam5(j.jam)} pada hari ${NAMA_HARI[hari]} akan dihapus.`)
     if (!ya) return
     try {
       await api.hapus(`/jadwal/${j.id}`)
@@ -163,7 +179,7 @@
 {:else}
   <div class="mb-4 max-w-sm">
     <Medan label="Profil" untuk="jadwal-profil">
-      <select id="jadwal-profil" class={masukan} bind:value={profilId} onchange={muatJadwal}>
+      <select id="jadwal-profil" class={masukan} bind:value={profilId} onchange={() => muatJadwal(true)}>
         {#each profil as p (p.id)}
           <option value={p.id}>{p.nama}{p.id === defaultId ? ' (default)' : ''}</option>
         {/each}
@@ -194,14 +210,21 @@
   <Kartu>
     <div id="panel-hari" role="tabpanel" aria-labelledby="tab-hari-{hari}">
       <h2 class="mb-3 text-lg font-semibold">{NAMA_HARI[hari]}</h2>
-      {#if hariIni.length === 0}
+      {#if memuatDaftar}
+        <Memuat />
+      {:else if galatDaftar}
+        <div class="flex flex-col items-center gap-3 py-6">
+          <p class="text-slate-600">Daftar bel gagal dimuat.</p>
+          <Tombol varian="kedua" onclick={() => muatJadwal(true)}>Coba lagi</Tombol>
+        </div>
+      {:else if hariIni.length === 0}
         <Kosong pesan="Belum ada bel pada hari {NAMA_HARI[hari]}" />
       {:else}
         <ul class="divide-y divide-slate-200">
           {#each hariIni as j (j.id)}
             {@const jb = jenisPer(j.jenisBelId)}
             <li class="flex items-center gap-3 py-2">
-              <span class="w-14 shrink-0 text-lg font-bold tabular-nums">{j.jam}</span>
+              <span class="w-14 shrink-0 text-lg font-bold tabular-nums">{jam5(j.jam)}</span>
               <div class="min-w-0 flex-1">
                 <p class="truncate">{j.label || jb?.nama || 'Bel'}</p>
                 {#if jb}
@@ -216,7 +239,7 @@
               <button
                 type="button"
                 class="inline-grid size-11 shrink-0 place-items-center rounded-lg text-slate-700 hover:bg-slate-100"
-                aria-label="Ubah {j.jam}"
+                aria-label="Ubah {jam5(j.jam)}"
                 onclick={() => bukaUbah(j)}
               >
                 <Pencil class="size-5" />
@@ -224,7 +247,7 @@
               <button
                 type="button"
                 class="inline-grid size-11 shrink-0 place-items-center rounded-lg text-red-600 hover:bg-red-50"
-                aria-label="Hapus {j.jam}"
+                aria-label="Hapus {jam5(j.jam)}"
                 onclick={() => hapus(j)}
               >
                 <Trash2 class="size-5" />
@@ -273,7 +296,8 @@
       </select>
     </Medan>
     <p class="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
-      Semua bel pada hari {NAMA_HARI[hari]} akan diganti.
+      Semua bel pada hari {NAMA_HARI[hari]} akan diganti.{#if jumlah(dariHari) === 0}
+        Hari {NAMA_HARI[dariHari]} belum punya bel; semua bel hari {NAMA_HARI[hari]} akan dihapus.{/if}
     </p>
     {#if galatSalin}
       <p class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{galatSalin}</p>
