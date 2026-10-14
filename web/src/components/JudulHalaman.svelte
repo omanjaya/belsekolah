@@ -1,12 +1,22 @@
 <script lang="ts">
   import type { Snippet } from 'svelte'
+  import { judulHalaman } from '../lib/judul.svelte'
+
   let { judul, keterangan = '', aksi }: { judul: string; keterangan?: string; aksi?: Snippet } = $props()
+
+  // <h1> hanya ada di bar atas (Layout); komponen ini mengisinya dan merender keterangan + aksi halaman.
+  $effect(() => {
+    const ini = judul
+    judulHalaman.teks = ini
+    return () => {
+      if (judulHalaman.teks === ini) judulHalaman.teks = ''
+    }
+  })
 </script>
 
-<header class="mb-5 flex flex-wrap items-end justify-between gap-3">
-  <div>
-    <h1 class="text-2xl font-bold tracking-tight text-slate-900">{judul}</h1>
-    {#if keterangan}<p class="mt-1 text-slate-600">{keterangan}</p>{/if}
-  </div>
-  {#if aksi}<div class="flex flex-wrap gap-2">{@render aksi()}</div>{/if}
-</header>
+{#if keterangan || aksi}
+  <header class="mb-4 flex flex-wrap items-center justify-between gap-3">
+    {#if keterangan}<p class="text-slate-600">{keterangan}</p>{/if}
+    {#if aksi}<div class="flex flex-wrap gap-2 md:ml-auto">{@render aksi()}</div>{/if}
+  </header>
+{/if}

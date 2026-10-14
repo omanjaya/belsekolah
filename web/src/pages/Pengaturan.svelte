@@ -6,7 +6,8 @@
   import Medan from '../components/Medan.svelte'
   import Memuat from '../components/Memuat.svelte'
   import GalatMuat from '../components/GalatMuat.svelte'
-  import { api, type Audio, type Pengaturan, type Profil, type Sesi, type Sistem } from '../lib/api'
+  import { api, type Audio, type Pengaturan, type Profil, type Sistem } from '../lib/api'
+  import { bacaBoot, tungguMulaiUlang } from '../lib/mulaiUlang'
   import { beriTahu, galat } from '../lib/notif.svelte'
   import { konfirmasi } from '../lib/konfirmasi.svelte'
   import { formatJam, offsetDariISO } from '../lib/format'
@@ -40,7 +41,6 @@
   let berkas = $state<File | null>(null)
   let restoreSibuk = $state(false)
   let memulaiUlang = $state(false)
-  let keluarSibuk = $state(false)
 
   async function muatSuara() {
     memuatSuara = true
@@ -153,37 +153,10 @@
     beriTahu('Alamat disalin')
   }
 
-  /** Ambil boot dari /api/sesi; null bila gagal, bukan 200, atau tanpa boot. */
-  async function bacaBoot(): Promise<string | null> {
-    const ac = new AbortController()
-    const t = setTimeout(() => ac.abort(), 5000)
-    try {
-      const res = await fetch('/api/sesi', { signal: ac.signal })
-      if (res.status !== 200) return null
-      const j = (await res.json()) as Sesi
-      return j.boot || null
-    } catch {
-      return null // galat jaringan wajar saat aplikasi memulai ulang
-    } finally {
-      clearTimeout(t)
-    }
-  }
-
-  const tidur = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
   async function tungguHidup(bootLama: string | null) {
     tungguHabis = false
-    const batas = Date.now() + 120_000
-    await tidur(2000)
-    while (!batal && Date.now() < batas) {
-      const b = await bacaBoot()
-      if (b && b !== bootLama) {
-        if (!batal) location.reload()
-        return
-      }
-      await tidur(2000)
-    }
-    if (!batal) tungguHabis = true
+    const ok = await tungguMulaiUlang(bootLama, { batal: () => batal })
+    if (!ok && !batal) tungguHabis = true
   }
 
   async function pulihkan() {
@@ -206,17 +179,6 @@
       galat(e)
     } finally {
       restoreSibuk = false
-    }
-  }
-
-  async function keluar() {
-    keluarSibuk = true
-    try {
-      await api.post('/logout')
-      location.reload()
-    } catch (e) {
-      galat(e)
-      keluarSibuk = false
     }
   }
 
@@ -348,10 +310,6 @@
         <div><Tombol varian="bahaya" onclick={pulihkan} sibuk={restoreSibuk}>Pulihkan dari backup</Tombol></div>
       </div>
     </Kartu>
-  </div>
-
-  <div class="mt-6">
-    <Tombol varian="kedua" onclick={keluar} sibuk={keluarSibuk}>Keluar</Tombol>
   </div>
 
 {#if memulaiUlang}

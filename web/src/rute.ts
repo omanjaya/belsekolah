@@ -13,6 +13,7 @@ import TidakDitemukan from './pages/TidakDitemukan.svelte'
 export interface ItemMenu {
   path: string
   label: string
+  labelPanjang?: string // nama di sidebar/laci bila berbeda dari label bar bawah
   ikon: Component
   utama: boolean // tampil di bar bawah HP
   halaman: Component
@@ -21,11 +22,11 @@ export interface ItemMenu {
 export const menu: ItemMenu[] = [
   { path: '/', label: 'Beranda', ikon: House, utama: true, halaman: Beranda },
   { path: '/jadwal', label: 'Jadwal', ikon: CalendarClock, utama: true, halaman: Jadwal },
-  { path: '/suara', label: 'Suara', ikon: Music, utama: true, halaman: PustakaSuara },
-  { path: '/riwayat', label: 'Riwayat', ikon: History, utama: true, halaman: Riwayat },
-  { path: '/jenis-bel', label: 'Jenis Bel', ikon: BellRing, utama: false, halaman: JenisBel },
   { path: '/profil', label: 'Profil & Periode', ikon: Layers, utama: false, halaman: ProfilPeriode },
   { path: '/libur', label: 'Libur', ikon: CalendarOff, utama: false, halaman: Libur },
+  { path: '/jenis-bel', label: 'Jenis Bel', ikon: BellRing, utama: false, halaman: JenisBel },
+  { path: '/suara', label: 'Suara', labelPanjang: 'Pustaka Suara', ikon: Music, utama: true, halaman: PustakaSuara },
+  { path: '/riwayat', label: 'Riwayat', ikon: History, utama: true, halaman: Riwayat },
   { path: '/pengaturan', label: 'Pengaturan', ikon: Settings, utama: false, halaman: Pengaturan },
 ]
 

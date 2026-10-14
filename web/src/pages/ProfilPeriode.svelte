@@ -21,7 +21,7 @@
   let memuat = $state(true)
   let profil = $state<Profil[]>([])
   let periode = $state<Periode[]>([])
-  let pengaturan = $state<Pengaturan>({ volume: 100, profilDefaultId: 0 })
+  let pengaturan = $state<Pengaturan>({ volume: 100, profilDefaultId: 0, zonaWaktu: '' })
   let hariIni = $state('')
   let galatMuat = $state('')
 
