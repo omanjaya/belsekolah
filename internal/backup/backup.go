@@ -35,14 +35,27 @@ func tidakValid(format string, a ...any) error {
 
 // Harian membuat backup database untuk tanggal `now` jika belum ada, lalu menyisakan `simpan` file terbaru.
 func Harian(ctx context.Context, st *store.Store, dir string, now time.Time, simpan int) error {
+	if simpan < 1 {
+		simpan = 1
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	tujuan := filepath.Join(dir, "bel-"+now.Format(schedule.FormatTanggal)+".db")
+	tgl := now.Format(schedule.FormatTanggal)
+	tujuan := filepath.Join(dir, "bel-"+tgl+".db")
 	if _, err := os.Stat(tujuan); errors.Is(err, os.ErrNotExist) {
-		if err := st.BackupKe(ctx, tujuan); err != nil {
+		tmp := filepath.Join(dir, ".bel-"+tgl+".db.tmp")
+		os.Remove(tmp)
+		if err := st.BackupKe(ctx, tmp); err != nil {
+			os.Remove(tmp)
 			return fmt.Errorf("backup harian: %w", err)
 		}
+		if err := os.Rename(tmp, tujuan); err != nil {
+			os.Remove(tmp)
+			return fmt.Errorf("backup harian: %w", err)
+		}
+	} else if err != nil {
+		return err
 	}
 	lama, err := filepath.Glob(filepath.Join(dir, "bel-????-??-??.db"))
 	if err != nil {
@@ -143,7 +156,12 @@ func Siapkan(ctx context.Context, zipPath, dataDir string) (err error) {
 
 	adaDB := false
 	var total int64
+	terlihat := map[string]bool{}
 	for _, f := range zr.File {
+		if terlihat[f.Name] {
+			return tidakValid("isi ganda %q", f.Name)
+		}
+		terlihat[f.Name] = true
 		switch {
 		case f.Name == namaDB:
 			adaDB = true
@@ -187,7 +205,7 @@ func ekstrak(f *zip.File, tujuan string, total *int64) error {
 	defer r.Close()
 	w, err := os.OpenFile(tujuan, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
 	if err != nil {
-		return err
+		return tidakValid("tidak bisa menulis %q", f.Name)
 	}
 	n, err := io.Copy(w, io.LimitReader(r, batasEkstrak-*total+1))
 	cerr := w.Close()
@@ -219,36 +237,57 @@ func periksaDB(ctx context.Context, path string) error {
 
 // TerapkanTertunda menerapkan restore yang disiapkan, sebelum database dibuka.
 // Data lama dipindahkan ke <data>/backup dengan akhiran waktu.
+//
+// Urutan aman diulang: audio lebih dulu, lalu database. Setiap bagian hanya
+// dijalankan jika sumbernya masih ada di folder tertunda, dan sumber itu dipindah
+// (rename) sebagai langkah terakhir bagian tersebut. Jadi bagian yang sudah
+// selesai tidak diulang pada percobaan berikutnya, database baru tidak pernah
+// diarsipkan, dan database lama baru diarsipkan tepat sebelum penggantinya
+// dipasang sehingga folder data tidak pernah tanpa database.
 func TerapkanTertunda(dataDir string, now time.Time) (bool, error) {
 	tertunda := filepath.Join(dataDir, folderTertunda)
 	if _, err := os.Stat(tertunda); errors.Is(err, os.ErrNotExist) {
 		return false, nil
+	} else if err != nil {
+		return false, fmt.Errorf("terapkan restore: %w", err)
 	}
+	gagal := func(err error) (bool, error) { return false, fmt.Errorf("terapkan restore: %w", err) }
+	ada := func(p string) bool { _, err := os.Stat(p); return err == nil }
+
 	arsip := filepath.Join(dataDir, "backup")
-	if err := os.MkdirAll(arsip, 0o755); err != nil {
-		return false, err
-	}
 	stempel := now.Format("20060102-150405")
-	db := filepath.Join(dataDir, namaDB)
-	for _, akhiran := range []string{"", "-wal", "-shm"} {
-		lama := db + akhiran
-		if _, err := os.Stat(lama); err == nil {
-			if err := os.Rename(lama, filepath.Join(arsip, "bel-sebelum-restore-"+stempel+".db"+akhiran)); err != nil {
-				return false, err
+	audio := filepath.Join(dataDir, "audio")
+	if ada(filepath.Join(tertunda, "audio")) {
+		if err := os.MkdirAll(arsip, 0o755); err != nil {
+			return gagal(err)
+		}
+		if ada(audio) {
+			if err := os.Rename(audio, filepath.Join(arsip, "audio-sebelum-restore-"+stempel)); err != nil {
+				return gagal(err)
 			}
 		}
-	}
-	if err := os.Rename(filepath.Join(tertunda, namaDB), db); err != nil {
-		return false, err
-	}
-	audio := filepath.Join(dataDir, "audio")
-	if _, err := os.Stat(audio); err == nil {
-		if err := os.Rename(audio, filepath.Join(arsip, "audio-sebelum-restore-"+stempel)); err != nil {
-			return false, err
+		if err := os.Rename(filepath.Join(tertunda, "audio"), audio); err != nil {
+			return gagal(err)
 		}
 	}
-	if err := os.Rename(filepath.Join(tertunda, "audio"), audio); err != nil {
-		return false, err
+	if ada(filepath.Join(tertunda, namaDB)) {
+		if err := os.MkdirAll(arsip, 0o755); err != nil {
+			return gagal(err)
+		}
+		db := filepath.Join(dataDir, namaDB)
+		for _, akhiran := range []string{"", "-wal", "-shm"} {
+			if ada(db + akhiran) {
+				if err := os.Rename(db+akhiran, filepath.Join(arsip, "bel-sebelum-restore-"+stempel+".db"+akhiran)); err != nil {
+					return gagal(err)
+				}
+			}
+		}
+		if err := os.Rename(filepath.Join(tertunda, namaDB), db); err != nil {
+			return gagal(err)
+		}
 	}
-	return true, os.RemoveAll(tertunda)
+	if err := os.RemoveAll(tertunda); err != nil {
+		return gagal(err)
+	}
+	return true, nil
 }

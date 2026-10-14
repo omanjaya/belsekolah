@@ -70,6 +70,29 @@ func buatZip(t *testing.T, path string, isi map[string][]byte) {
 	f.Close()
 }
 
+type entri struct {
+	nama string
+	isi  []byte
+}
+
+func buatZipUrut(t *testing.T, path string, isi []entri) {
+	t.Helper()
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	zw := zip.NewWriter(f)
+	for _, e := range isi {
+		w, err := zw.Create(e.nama)
+		if err != nil {
+			t.Fatal(err)
+		}
+		w.Write(e.isi)
+	}
+	zw.Close()
+	f.Close()
+}
+
 func TestHarianSekaliPerHariDanDipangkas(t *testing.T) {
 	dataDir, st := siapkanData(t)
 	dir := filepath.Join(dataDir, "backup")
@@ -217,4 +240,96 @@ func TestSiapkanMenolakIsiTidakValid(t *testing.T) {
 	if err := Siapkan(ctx, bukanZip, t.TempDir()); !errors.Is(err, ErrBackupTidakValid) {
 		t.Errorf("bukan zip: %v", err)
 	}
+}
+
+func TestSiapkanMenolakIsiGanda(t *testing.T) {
+	_, st := siapkanData(t)
+	snap := filepath.Join(t.TempDir(), "snap.db")
+	if err := st.BackupKe(ctx, snap); err != nil {
+		t.Fatal(err)
+	}
+	db, _ := os.ReadFile(snap)
+	kasus := map[string][]entri{
+		"bel.db ganda":      {{"bel.db", db}, {"bel.db", db}},
+		"audio/a.wav ganda": {{"bel.db", db}, {"audio/a.wav", []byte("x")}, {"audio/a.wav", []byte("y")}},
+	}
+	for nama, isi := range kasus {
+		t.Run(nama, func(t *testing.T) {
+			dataDir := t.TempDir()
+			zipPath := filepath.Join(t.TempDir(), "x.zip")
+			buatZipUrut(t, zipPath, isi)
+			err := Siapkan(ctx, zipPath, dataDir)
+			if !errors.Is(err, ErrBackupTidakValid) {
+				t.Fatalf("err = %v, mau ErrBackupTidakValid", err)
+			}
+			if _, err := os.Stat(filepath.Join(dataDir, "restore-tertunda")); !os.IsNotExist(err) {
+				t.Error("tidak boleh meninggalkan folder tertunda")
+			}
+		})
+	}
+}
+
+func TestTerapkanTertundaSebagian(t *testing.T) {
+	now := time.Date(2026, 10, 15, 9, 30, 0, 0, time.Local)
+	tulis := func(p, isi string) {
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		if err := os.WriteFile(p, []byte(isi), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	baca := func(p string) string { b, _ := os.ReadFile(p); return string(b) }
+	ada := func(p string) bool { _, err := os.Stat(p); return err == nil }
+
+	t.Run("hanya bel.db", func(t *testing.T) {
+		d := t.TempDir()
+		tulis(filepath.Join(d, "bel.db"), "lama")
+		tulis(filepath.Join(d, "audio", "baru.wav"), "baru")
+		tulis(filepath.Join(d, "restore-tertunda", "bel.db"), "baru")
+		ok, err := TerapkanTertunda(d, now)
+		if err != nil || !ok {
+			t.Fatalf("= %v, %v", ok, err)
+		}
+		if baca(filepath.Join(d, "bel.db")) != "baru" {
+			t.Error("db harus terpasang")
+		}
+		if ada(filepath.Join(d, "backup", "audio-sebelum-restore-20261015-093000")) {
+			t.Error("audio saat ini tidak boleh diarsipkan")
+		}
+		if !ada(filepath.Join(d, "audio", "baru.wav")) {
+			t.Error("audio harus tetap ada")
+		}
+		if ada(filepath.Join(d, "restore-tertunda")) {
+			t.Error("folder tertunda harus dihapus")
+		}
+	})
+	t.Run("hanya audio", func(t *testing.T) {
+		d := t.TempDir()
+		tulis(filepath.Join(d, "bel.db"), "hidup")
+		tulis(filepath.Join(d, "audio", "lama.wav"), "lama")
+		tulis(filepath.Join(d, "restore-tertunda", "audio", "baru.wav"), "baru")
+		ok, err := TerapkanTertunda(d, now)
+		if err != nil || !ok {
+			t.Fatalf("= %v, %v", ok, err)
+		}
+		if baca(filepath.Join(d, "bel.db")) != "hidup" {
+			t.Error("db tidak boleh disentuh")
+		}
+		if !ada(filepath.Join(d, "audio", "baru.wav")) || ada(filepath.Join(d, "audio", "lama.wav")) {
+			t.Error("audio harus diganti")
+		}
+		if ada(filepath.Join(d, "backup", "bel-sebelum-restore-20261015-093000.db")) {
+			t.Error("db tidak boleh diarsipkan")
+		}
+	})
+	t.Run("kosong", func(t *testing.T) {
+		d := t.TempDir()
+		os.MkdirAll(filepath.Join(d, "restore-tertunda"), 0o755)
+		ok, err := TerapkanTertunda(d, now)
+		if err != nil || !ok {
+			t.Fatalf("= %v, %v", ok, err)
+		}
+		if ada(filepath.Join(d, "restore-tertunda")) {
+			t.Error("folder tertunda harus dihapus")
+		}
+	})
 }
