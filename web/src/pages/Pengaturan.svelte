@@ -5,7 +5,8 @@
   import Tombol from '../components/Tombol.svelte'
   import Medan from '../components/Medan.svelte'
   import Memuat from '../components/Memuat.svelte'
-  import { api, type Audio, type Pengaturan, type Profil, type Sistem } from '../lib/api'
+  import GalatMuat from '../components/GalatMuat.svelte'
+  import { api, type Audio, type Pengaturan, type Profil, type Sesi, type Sistem } from '../lib/api'
   import { beriTahu, galat } from '../lib/notif.svelte'
   import { konfirmasi } from '../lib/konfirmasi.svelte'
   import { formatJam, offsetDariISO } from '../lib/format'
@@ -17,6 +18,7 @@
   let galatSuara = $state(false)
   let galatSistem = $state(false)
   let profilTermuat = 0
+  let volumeTermuat = 70
   let batal = false
   let tungguHabis = $state(false)
   let volume = $state(70)
@@ -52,6 +54,7 @@
       volume = p.volume
       profilId = p.profilDefaultId
       profilTermuat = p.profilDefaultId
+      volumeTermuat = p.volume
       profil = pr
       audio = a
     } catch {
@@ -82,8 +85,14 @@
   async function simpan() {
     simpanSibuk = true
     try {
-      await api.put('/pengaturan', { volume, profilDefaultId: profilId })
-      profilTermuat = profilId
+      // Ambil ulang tepat sebelum menyimpan; hanya field yang diubah pengguna yang ditimpa.
+      const kini = await api.get<Pengaturan>('/pengaturan')
+      const badan = { ...kini }
+      if (volume !== volumeTermuat) badan.volume = volume
+      if (profilId !== profilTermuat) badan.profilDefaultId = profilId
+      await api.put('/pengaturan', badan)
+      volumeTermuat = badan.volume
+      profilTermuat = badan.profilDefaultId
       beriTahu('Pengaturan disimpan')
     } catch (e) {
       galat(e)
@@ -144,14 +153,17 @@
     beriTahu('Alamat disalin')
   }
 
-  async function sesiHidup(): Promise<boolean> {
+  /** Ambil boot dari /api/sesi; null bila gagal, bukan 200, atau tanpa boot. */
+  async function bacaBoot(): Promise<string | null> {
     const ac = new AbortController()
     const t = setTimeout(() => ac.abort(), 5000)
     try {
       const res = await fetch('/api/sesi', { signal: ac.signal })
-      return res.ok
+      if (res.status !== 200) return null
+      const j = (await res.json()) as Sesi
+      return j.boot || null
     } catch {
-      return false
+      return null // galat jaringan wajar saat aplikasi memulai ulang
     } finally {
       clearTimeout(t)
     }
@@ -159,12 +171,13 @@
 
   const tidur = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-  async function tungguHidup() {
+  async function tungguHidup(bootLama: string | null) {
     tungguHabis = false
     const batas = Date.now() + 120_000
     await tidur(2000)
     while (!batal && Date.now() < batas) {
-      if (await sesiHidup()) {
+      const b = await bacaBoot()
+      if (b && b !== bootLama) {
         if (!batal) location.reload()
         return
       }
@@ -183,11 +196,12 @@
     if (!ya) return
     restoreSibuk = true
     try {
+      const bootLama = await bacaBoot()
       const fd = new FormData()
       fd.append('file', berkas)
       await api.post('/restore', fd)
       memulaiUlang = true
-      void tungguHidup()
+      void tungguHidup(bootLama)
     } catch (e) {
       galat(e)
     } finally {
@@ -204,6 +218,20 @@
       galat(e)
       keluarSibuk = false
     }
+  }
+
+  const alatBaris = $derived<[string, boolean][]>(
+    sistem?.alat
+      ? [
+          ['Pemutar audio (mpv)', sistem.alat.mpv],
+          ['Pembaca audio (ffprobe)', sistem.alat.ffprobe],
+          ['Suara TTS (edge-tts)', sistem.alat.edgeTts],
+        ]
+      : [],
+  )
+
+  function formatUkuranMb(mb: number): string {
+    return mb >= 1024 ? `${(mb / 1024).toLocaleString('id-ID', { maximumFractionDigits: 1 })} GB` : `${Math.round(mb).toLocaleString('id-ID')} MB`
   }
 
   const ntp = $derived(
@@ -223,10 +251,7 @@
       {#if memuatSuara}
         <Memuat />
       {:else if galatSuara}
-        <div class="flex flex-col items-start gap-3" role="alert">
-          <p class="text-red-600">Pengaturan gagal dimuat</p>
-          <Tombol varian="kedua" onclick={muatSuara}>Coba lagi</Tombol>
-        </div>
+        <GalatMuat pesan="Pengaturan gagal dimuat" oncoba={muatSuara} />
       {:else}
       <div class="flex flex-col gap-4">
         <Medan label="Volume: {volume}%" untuk="pg-volume">
@@ -257,7 +282,7 @@
         <Medan label="Ulangi password baru" untuk="pw-ulangi" galat={galatUlang}>
           <input id="pw-ulangi" type="password" autocomplete="new-password" aria-invalid={galatUlang ? true : undefined} aria-describedby={galatUlang ? 'pw-ulangi-galat' : undefined} bind:value={ulangi} class={input} />
         </Medan>
-        {#if pwGalat}<p class="text-sm text-red-600" role="alert">{pwGalat}</p>{/if}
+        {#if pwGalat}<p class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{pwGalat}</p>{/if}
         <div><Tombol type="submit" sibuk={pwSibuk}>Ganti password</Tombol></div>
       </form>
     </Kartu>
@@ -267,10 +292,7 @@
       {#if memuatSistem}
         <Memuat />
       {:else if galatSistem}
-        <div class="flex flex-col items-start gap-3" role="alert">
-          <p class="text-red-600">Info sistem gagal dimuat</p>
-          <Tombol varian="kedua" onclick={muatSistem}>Coba lagi</Tombol>
-        </div>
+        <GalatMuat pesan="Info sistem gagal dimuat" oncoba={muatSistem} />
       {:else if sistem}
         <dl class="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
           <dt class="text-slate-600">Versi</dt>
@@ -281,6 +303,20 @@
           <dd class="font-medium tabular-nums">{formatJam(Date.parse(sistem.sekarang), offsetDariISO(sistem.sekarang))}</dd>
           <dt class="text-slate-600">Sinkron jam</dt>
           <dd><span class="rounded-full px-2.5 py-0.5 text-sm font-medium {ntp.kelas}">{ntp.teks}</span></dd>
+          {#if sistem.alat}
+            {#each alatBaris as [nama, ada] (nama)}
+              <dt class="text-slate-600">{nama}</dt>
+              <dd><span class="rounded-full px-2.5 py-0.5 text-sm font-medium {ada ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">{ada ? 'Terpasang' : 'Belum terpasang'}</span></dd>
+            {/each}
+          {/if}
+          {#if sistem.ruangKosongMb != null}
+            <dt class="text-slate-600">Ruang disk kosong</dt>
+            <dd class="font-medium tabular-nums">{formatUkuranMb(sistem.ruangKosongMb)}</dd>
+          {/if}
+          {#if sistem.backupTerakhir}
+            <dt class="text-slate-600">Backup harian terakhir</dt>
+            <dd class="font-medium">{sistem.backupTerakhir}</dd>
+          {/if}
         </dl>
         <h3 class="mb-2 mt-4 font-medium text-slate-800">Alamat akses</h3>
         {#if sistem.ip.length === 0}

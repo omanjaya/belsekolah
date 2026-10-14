@@ -3,7 +3,7 @@
   import type { HTMLButtonAttributes } from 'svelte/elements'
 
   type Props = HTMLButtonAttributes & {
-    varian?: 'utama' | 'kedua' | 'bahaya' | 'hantu'
+    varian?: 'utama' | 'kedua' | 'bahaya' | 'bahaya-teks' | 'hantu'
     sibuk?: boolean
     children: Snippet
   }
@@ -13,6 +13,7 @@
     utama: 'bg-blue-700 text-white hover:bg-blue-800 focus-visible:outline-blue-700',
     kedua: 'bg-white text-slate-800 ring-1 ring-slate-300 hover:bg-slate-50 focus-visible:outline-slate-500',
     bahaya: 'bg-red-600 text-white hover:bg-red-700 focus-visible:outline-red-600',
+    'bahaya-teks': 'text-red-700 hover:bg-red-50 focus-visible:outline-red-600',
     hantu: 'text-slate-700 hover:bg-slate-100 focus-visible:outline-slate-500',
   }
 </script>

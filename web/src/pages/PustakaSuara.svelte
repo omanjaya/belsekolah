@@ -5,6 +5,7 @@
   import Kartu from '../components/Kartu.svelte'
   import Kosong from '../components/Kosong.svelte'
   import Memuat from '../components/Memuat.svelte'
+  import GalatMuat from '../components/GalatMuat.svelte'
   import Modal from '../components/Modal.svelte'
   import Medan from '../components/Medan.svelte'
   import Tombol from '../components/Tombol.svelte'
@@ -39,6 +40,8 @@
   const tampil = $derived(tab === 'semua' ? daftar : daftar.filter((a) => a.sumber === tab))
 
   async function muat() {
+    galatMuat = ''
+    memuat = true
     try {
       daftar = await api.get<Audio[]>('/audio')
       galatMuat = ''
@@ -287,7 +290,7 @@
     {#if memuat}
       <Memuat />
     {:else if galatMuat}
-      <p role="alert" class="rounded-xl bg-red-50 px-4 py-3 text-red-700">{galatMuat}</p>
+      <GalatMuat pesan={galatMuat} oncoba={muat} />
     {:else if tampil.length === 0}
       <Kosong pesan="Belum ada suara di kategori ini." />
     {:else}
@@ -313,7 +316,7 @@
                 <Tombol varian="hantu" onclick={() => bukaUbahTeks(a)} aria-label="Ubah teks {a.nama}"><FileText class="size-4" /> Ubah teks</Tombol>
               {/if}
               {#if a.sumber !== 'bawaan'}
-                <Tombol varian="hantu" onclick={() => hapus(a)} aria-label="Hapus {a.nama}"><Trash2 class="size-4" /> Hapus</Tombol>
+                <Tombol varian="bahaya-teks" onclick={() => hapus(a)} aria-label="Hapus {a.nama}"><Trash2 class="size-4" /> Hapus</Tombol>
               {/if}
             </div>
           </li>
@@ -365,7 +368,7 @@
         </Medan>
         <fieldset class="flex flex-col gap-1">
           <legend class="mb-1 text-sm font-medium text-slate-800">Suara</legend>
-          {#if galatSuara}<p class="text-sm text-red-600" role="alert">{galatSuara}</p>{/if}
+          {#if galatSuara}<p class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{galatSuara}</p>{/if}
           {#each suara as s (s.id)}
             <label class="flex min-h-11 items-center gap-3 rounded-xl px-2 hover:bg-slate-50">
               <input type="radio" name="suara-tts" value={s.id} bind:group={suaraTts} class="size-5" />

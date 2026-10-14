@@ -14,7 +14,7 @@
   <label for={untuk} class="text-sm font-medium text-slate-800">{label}</label>
   {@render children()}
   {#if galat}
-    <p id="{untuk}-galat" class="text-sm text-red-600" role="alert">{galat}</p>
+    <p id="{untuk}-galat" class="text-sm text-red-700" role="alert">{galat}</p>
   {:else if bantuan}
     <p class="text-sm text-slate-500">{bantuan}</p>
   {/if}

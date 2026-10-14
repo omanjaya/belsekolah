@@ -16,7 +16,7 @@
   })
 
   const gaya = {
-    sukses: 'bg-emerald-600 text-white',
+    sukses: 'bg-emerald-700 text-white',
     galat: 'bg-red-600 text-white',
     info: 'bg-slate-800 text-white',
   }
