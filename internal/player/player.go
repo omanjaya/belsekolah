@@ -26,6 +26,9 @@ type Prioritas int
 const (
 	Biasa Prioritas = iota
 	Darurat
+	// Tes adalah pemutaran uji dari panel admin. Tidak pernah memotong apa pun,
+	// dan dibuang bila bel Biasa/Darurat datang agar bel asli tidak tertunda.
+	Tes
 )
 
 // Permintaan adalah satu bel: beberapa file diputar berurutan.
@@ -51,6 +54,7 @@ type Player struct {
 	mu      sync.Mutex
 	antrean []Permintaan
 	batal   context.CancelFunc // membatalkan permintaan yang sedang diputar
+	sedang  Prioritas          // prioritas permintaan yang sedang diputar (valid bila batal != nil)
 	volume  int
 }
 
@@ -74,6 +78,7 @@ func (p *Player) SetVolume(v int) {
 func (p *Player) Play(req Permintaan) {
 	p.mu.Lock()
 	var dibuang []Permintaan
+	alasan := "dihentikan oleh bel darurat"
 	if req.Prioritas == Darurat {
 		dibuang = p.antrean
 		p.antrean = []Permintaan{req}
@@ -81,11 +86,27 @@ func (p *Player) Play(req Permintaan) {
 			p.batal()
 		}
 	} else {
+		if req.Prioritas == Biasa {
+			// Tes tidak boleh menunda bel asli.
+			alasan = "dihentikan oleh bel"
+			sisa := p.antrean[:0:0]
+			for _, q := range p.antrean {
+				if q.Prioritas == Tes {
+					dibuang = append(dibuang, q)
+				} else {
+					sisa = append(sisa, q)
+				}
+			}
+			p.antrean = sisa
+			if p.batal != nil && p.sedang == Tes {
+				p.batal()
+			}
+		}
 		p.antrean = append(p.antrean, req)
 	}
 	p.mu.Unlock()
 	for _, d := range dibuang {
-		selesai(d, Dihentikan, "dihentikan oleh bel darurat")
+		selesai(d, Dihentikan, alasan)
 	}
 	p.bangunkan()
 }
@@ -126,6 +147,7 @@ func (p *Player) Jalankan(ctx context.Context) {
 		p.antrean = p.antrean[1:]
 		reqCtx, batal := context.WithCancel(ctx)
 		p.batal = batal
+		p.sedang = req.Prioritas
 		volume := p.volume
 		p.mu.Unlock()
 

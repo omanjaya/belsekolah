@@ -57,29 +57,73 @@ func (s *Store) JadwalTercatat(ctx context.Context, tanggal string) (map[int64]b
 	return out, rows.Err()
 }
 
-// RiwayatTerbaru mengembalikan riwayat terbaru lebih dulu.
-func (s *Store) RiwayatTerbaru(ctx context.Context, batas int) ([]Riwayat, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, waktu, jadwal_id, jenis_bel_id, label, sumber, status, pesan
-		 FROM riwayat_bel ORDER BY waktu DESC, id DESC LIMIT ?`, batas)
+// FilterRiwayat menyaring riwayat; nilai kosong berarti tanpa filter. Batas default 200, maks 1000.
+type FilterRiwayat struct {
+	Tanggal string
+	Status  string
+	Batas   int
+}
+
+var statusRiwayat = map[string]bool{
+	"berhasil": true, "gagal": true, "terlewat": true, "cadangan": true, "dihentikan": true,
+}
+
+func (s *Store) CariRiwayat(ctx context.Context, f FilterRiwayat) ([]Riwayat, error) {
+	if f.Batas <= 0 || f.Batas > 1000 {
+		f.Batas = 200
+	}
+	q := `SELECT id, waktu, jadwal_id, jenis_bel_id, label, sumber, status, pesan FROM riwayat_bel WHERE 1 = 1`
+	var args []any
+	if f.Tanggal != "" {
+		if _, err := time.Parse(schedule.FormatTanggal, f.Tanggal); err != nil {
+			return nil, validasi("tanggal tidak valid %q, gunakan format YYYY-MM-DD", f.Tanggal)
+		}
+		q += ` AND tanggal = ?`
+		args = append(args, f.Tanggal)
+	}
+	if f.Status != "" {
+		if !statusRiwayat[f.Status] {
+			return nil, validasi("status riwayat tidak dikenal %q", f.Status)
+		}
+		q += ` AND status = ?`
+		args = append(args, f.Status)
+	}
+	q += ` ORDER BY waktu DESC, id DESC LIMIT ?`
+	args = append(args, f.Batas)
+
+	rows, err := s.db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var out []Riwayat
 	for rows.Next() {
-		var r Riwayat
-		var waktu string
-		var jadwalID, jenisBelID sql.NullInt64
-		if err := rows.Scan(&r.ID, &waktu, &jadwalID, &jenisBelID, &r.Label, &r.Sumber, &r.Status, &r.Pesan); err != nil {
+		r, err := scanRiwayat(rows)
+		if err != nil {
 			return nil, err
 		}
-		if r.Waktu, err = time.Parse(time.RFC3339, waktu); err != nil {
-			return nil, fmt.Errorf("waktu riwayat %d tidak valid: %w", r.ID, err)
-		}
-		r.Waktu = r.Waktu.Local()
-		r.JadwalID, r.JenisBelID = jadwalID.Int64, jenisBelID.Int64
 		out = append(out, r)
 	}
 	return out, rows.Err()
+}
+
+// RiwayatTerbaru mengembalikan riwayat terbaru lebih dulu.
+func (s *Store) RiwayatTerbaru(ctx context.Context, batas int) ([]Riwayat, error) {
+	return s.CariRiwayat(ctx, FilterRiwayat{Batas: batas})
+}
+
+func scanRiwayat(rows *sql.Rows) (Riwayat, error) {
+	var r Riwayat
+	var waktu string
+	var jadwalID, jenisBelID sql.NullInt64
+	if err := rows.Scan(&r.ID, &waktu, &jadwalID, &jenisBelID, &r.Label, &r.Sumber, &r.Status, &r.Pesan); err != nil {
+		return r, err
+	}
+	t, err := time.Parse(time.RFC3339, waktu)
+	if err != nil {
+		return r, fmt.Errorf("waktu riwayat %d tidak valid: %w", r.ID, err)
+	}
+	r.Waktu = t.Local()
+	r.JadwalID, r.JenisBelID = jadwalID.Int64, jenisBelID.Int64
+	return r, nil
 }
