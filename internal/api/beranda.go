@@ -6,6 +6,7 @@ import (
 
 	"belsekolah/internal/schedule"
 	"belsekolah/internal/store"
+	"belsekolah/internal/zona"
 )
 
 func (s *server) status(w http.ResponseWriter, r *http.Request) {
@@ -15,6 +16,7 @@ func (s *server) status(w http.ResponseWriter, r *http.Request) {
 	out := statusDTO{
 		Sekarang: now, Tanggal: st.Tanggal, Hari: schedule.Hari(now),
 		Bel: []belHariIniDTO{}, Peringatan: []string{},
+		ZonaWaktu: zona.Kode(s.zonaAktif()),
 	}
 	if !st.Siap {
 		out.Tanggal = now.Format(schedule.FormatTanggal)

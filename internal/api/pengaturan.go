@@ -9,8 +9,10 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+	"time"
 
 	"belsekolah/internal/store"
+	"belsekolah/internal/zona"
 )
 
 func (s *server) bacaPengaturan(r *http.Request) (pengaturanDTO, error) {
@@ -25,6 +27,7 @@ func (s *server) bacaPengaturan(r *http.Request) (pengaturanDTO, error) {
 		return p, err
 	}
 	p.ProfilDefaultID = def
+	p.ZonaWaktu = zona.Kode(s.zonaAktif())
 	return p, nil
 }
 
@@ -46,6 +49,21 @@ func (s *server) ubahPengaturan(w http.ResponseWriter, r *http.Request) {
 		tulisError(w, http.StatusBadRequest, "volume harus 0 sampai 100")
 		return
 	}
+	var ianaBaru string
+	if p.ZonaWaktu != "" {
+		iana, ok := zona.IANA(p.ZonaWaktu)
+		if !ok {
+			tulisError(w, http.StatusBadRequest, "zona waktu harus WIB, WITA, atau WIT")
+			return
+		}
+		if iana != s.zonaAktif() {
+			if s.restore.Load() != restoreIdle {
+				tulisError(w, http.StatusServiceUnavailable, "restore sedang berjalan, coba lagi nanti")
+				return
+			}
+			ianaBaru = iana
+		}
+	}
 	if err := s.Store.SetProfilDefault(r.Context(), p.ProfilDefaultID); err != nil {
 		s.tulisErrorData(w, err)
 		return
@@ -56,6 +74,29 @@ func (s *server) ubahPengaturan(w http.ResponseWriter, r *http.Request) {
 	}
 	s.Pemutar.SetVolume(p.Volume)
 	s.ubahData()
+	if ianaBaru != "" {
+		if err := s.Store.SetZonaWaktu(r.Context(), ianaBaru); err != nil {
+			s.tulisErrorData(w, err)
+			return
+		}
+		s.akanMulaiUlang.Store(true)
+		s.Log.Warn("zona waktu diganti, aplikasi akan dimulai ulang", "zona", ianaBaru)
+		out, err := s.bacaPengaturan(r)
+		if err != nil {
+			s.tulisErrorData(w, err)
+			return
+		}
+		out.ZonaWaktu = zona.Kode(ianaBaru)
+		out.MulaiUlang = true
+		tulisJSON(w, http.StatusOK, out)
+		if s.MulaiUlang != nil {
+			go func() {
+				time.Sleep(500 * time.Millisecond) // beri waktu respons terkirim
+				s.MulaiUlang()
+			}()
+		}
+		return
+	}
 	s.ambilPengaturan(w, r)
 }
 
@@ -63,7 +104,8 @@ func (s *server) sistem(w http.ResponseWriter, r *http.Request) {
 	now := s.Now()
 	out := sistemDTO{
 		Versi:     s.Versi,
-		ZonaWaktu: now.Location().String() + " (" + now.Format("MST -07:00") + ")",
+		ZonaWaktu: zona.Kode(s.zonaAktif()),
+		ZonaIana:  s.zonaAktif(),
 		Sekarang:  now,
 		IP:        []string{},
 	}

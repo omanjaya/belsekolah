@@ -26,6 +26,7 @@ import (
 	"belsekolah/internal/store"
 	"belsekolah/internal/tts"
 	"belsekolah/internal/webui"
+	"belsekolah/internal/zona"
 )
 
 // versi diisi saat build: -ldflags "-X main.versi=..."
@@ -34,20 +35,16 @@ var versi = "dev"
 var _ scheduler.Sumber = (*store.Store)(nil)
 
 // errMulaiUlang membuat proses keluar dengan kode 3 agar systemd/Docker memulainya lagi.
-var errMulaiUlang = errors.New("mulai ulang setelah restore")
+var errMulaiUlang = errors.New("mulai ulang atas permintaan (restore atau zona waktu)")
 
 func main() {
 	dataDir := flag.String("data", "/var/lib/belsekolah", "folder data (database dan audio)")
-	tz := flag.String("tz", "Asia/Jakarta", "zona waktu sekolah")
+	tz := flag.String("tz", "Asia/Jakarta", "zona waktu awal; pilihan di web lebih diutamakan")
 	addr := flag.String("addr", ":80", "alamat web server")
 	reset := flag.Bool("reset-password", false, "buat password admin acak baru lalu keluar")
 	flag.Parse()
 
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	if err := aturZonaWaktu(*tz); err != nil {
-		log.Error("aplikasi berhenti", "err", err)
-		os.Exit(1)
-	}
 	if *reset {
 		if err := resetPassword(*dataDir); err != nil {
 			log.Error("reset password gagal", "err", err)
@@ -55,29 +52,15 @@ func main() {
 		}
 		return
 	}
-	err := jalankan(*dataDir, *addr, log)
+	err := jalankan(*dataDir, *addr, *tz, log)
 	switch {
 	case errors.Is(err, errMulaiUlang):
-		log.Info("keluar untuk menerapkan restore; layanan akan dimulai ulang")
+		log.Info("keluar untuk dimulai ulang; layanan akan berjalan lagi")
 		os.Exit(3)
 	case err != nil:
 		log.Error("aplikasi berhenti", "err", err)
 		os.Exit(1)
 	}
-}
-
-// aturZonaWaktu menjadikan zona sekolah sebagai time.Local, sehingga bel berbunyi
-// menurut jam lokal sekolah walau OS memakai UTC.
-func aturZonaWaktu(nama string) error {
-	if nama == "" {
-		return errors.New("zona waktu wajib diisi, misalnya Asia/Jakarta")
-	}
-	loc, err := time.LoadLocation(nama)
-	if err != nil {
-		return fmt.Errorf("zona waktu tidak valid %q: %w", nama, err)
-	}
-	time.Local = loc
-	return nil
 }
 
 func tulisPasswordAwal(dataDir, pw string) error {
@@ -106,7 +89,7 @@ func resetPassword(dataDir string) error {
 	return nil
 }
 
-func jalankan(dataDir, addr string, log *slog.Logger) error {
+func jalankan(dataDir, addr, tz string, log *slog.Logger) error {
 	sinyal, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	ctx, batal := context.WithCancelCause(sinyal)
@@ -141,6 +124,17 @@ func jalankan(dataDir, addr string, log *slog.Logger) error {
 		return err
 	}
 	defer st.Close()
+
+	tersimpan, err := st.ZonaWaktu(ctx)
+	if err != nil {
+		return fmt.Errorf("baca zona waktu: %w", err)
+	}
+	loc, peringatan := zona.Pilih(tersimpan, tz)
+	for _, p := range peringatan {
+		log.Warn(p)
+	}
+	// Belum ada goroutine yang membaca jam, jadi aman mengganti time.Local di sini.
+	time.Local = loc
 
 	if err := bawaan.Pasang(ctx, st, audioDir, time.Now()); err != nil {
 		return fmt.Errorf("pasang data awal: %w", err)
@@ -186,7 +180,7 @@ func jalankan(dataDir, addr string, log *slog.Logger) error {
 		IdleTimeout:       120 * time.Second,
 		Handler: api.New(api.Deps{
 			Store: st, Auth: au, Penjadwal: sch, Pemutar: pemutar,
-			DataDir: dataDir, AudioDir: audioDir, Versi: versi,
+			DataDir: dataDir, AudioDir: audioDir, Versi: versi, Zona: loc.String(),
 			Web: webui.FS(), Log: log, Now: time.Now,
 			CekNTP: sistem.CekNTP(), DurasiAudio: sistem.DurasiAudio,
 			MulaiUlang: func() { batal(errMulaiUlang) },
@@ -200,7 +194,7 @@ func jalankan(dataDir, addr string, log *slog.Logger) error {
 	}()
 
 	log.Info("bel sekolah berjalan", "versi", versi, "alamat", addr, "data", dataDir,
-		"zona_waktu", time.Now().Format("MST -07:00"))
+		"zona_waktu", loc.String())
 	sch.Run(ctx)
 
 	tutup, batalTutup := context.WithTimeout(context.Background(), 5*time.Second)

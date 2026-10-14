@@ -88,16 +88,20 @@ type statusDTO struct {
 	Bel        []belHariIniDTO `json:"bel"`
 	Berikutnya *belHariIniDTO  `json:"berikutnya"`
 	Peringatan []string        `json:"peringatan"`
+	ZonaWaktu  string          `json:"zonaWaktu"`
 }
 
 type pengaturanDTO struct {
-	Volume          int   `json:"volume"`
-	ProfilDefaultID int64 `json:"profilDefaultId"`
+	Volume          int    `json:"volume"`
+	ProfilDefaultID int64  `json:"profilDefaultId"`
+	ZonaWaktu       string `json:"zonaWaktu"`
+	MulaiUlang      bool   `json:"mulaiUlang,omitempty"`
 }
 
 type sistemDTO struct {
 	Versi     string    `json:"versi"`
 	ZonaWaktu string    `json:"zonaWaktu"`
+	ZonaIana  string    `json:"zonaIana"`
 	Sekarang  time.Time `json:"sekarang"`
 	IP        []string  `json:"ip"`
 	NTP       *bool     `json:"ntp"`

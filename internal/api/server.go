@@ -41,6 +41,7 @@ type Deps struct {
 	DataDir     string
 	AudioDir    string
 	Versi       string
+	Zona        string // nama IANA zona aktif; "" = lokasi dari Now()
 	Web         fs.FS
 	Log         *slog.Logger
 	Now         func() time.Time
@@ -66,6 +67,16 @@ type server struct {
 	Deps
 	boot    string       // acak per proses; berubah berarti aplikasi sudah dimulai ulang
 	restore atomic.Int32 // restoreIdle / restoreProses / restoreSiap
+
+	akanMulaiUlang atomic.Bool // zona diganti; aplikasi akan dimulai ulang
+}
+
+// zonaAktif mengembalikan nama IANA zona yang sedang dipakai proses.
+func (s *server) zonaAktif() string {
+	if s.Zona != "" {
+		return s.Zona
+	}
+	return s.Now().Location().String()
 }
 
 func idBoot() string {
@@ -144,12 +155,16 @@ func (s *server) headerAman(next http.Handler) http.Handler {
 // setelah restore disiapkan, supaya tidak ada perubahan yang hilang saat aplikasi dimulai ulang.
 func (s *server) blokirSaatRestore(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if s.restore.Load() == restoreSiap {
+		if s.restore.Load() == restoreSiap || s.akanMulaiUlang.Load() {
 			switch r.Method {
 			case http.MethodGet, http.MethodHead:
 			default:
 				if r.URL.Path != "/api/login" && r.URL.Path != "/api/logout" {
-					tulisError(w, http.StatusServiceUnavailable, "aplikasi sedang dimulai ulang untuk menerapkan restore")
+					pesan := "aplikasi sedang dimulai ulang untuk menerapkan restore"
+					if s.restore.Load() != restoreSiap {
+						pesan = "aplikasi sedang dimulai ulang untuk menerapkan zona waktu"
+					}
+					tulisError(w, http.StatusServiceUnavailable, pesan)
 					return
 				}
 			}

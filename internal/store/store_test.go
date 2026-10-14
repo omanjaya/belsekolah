@@ -301,3 +301,16 @@ func TestCreatePeriode_TumpangTindih(t *testing.T) {
 		t.Fatalf("err = %v, mau ErrPeriodeTumpangTindih", err)
 	}
 }
+
+func TestZonaWaktu(t *testing.T) {
+	s := bukaStore(t)
+	if z := harus(s.ZonaWaktu(ctx))(t); z != "" {
+		t.Fatalf("zona awal = %q, mau kosong", z)
+	}
+	if err := s.SetZonaWaktu(ctx, "Asia/Makassar"); err != nil {
+		t.Fatal(err)
+	}
+	if z := harus(s.ZonaWaktu(ctx))(t); z != "Asia/Makassar" {
+		t.Fatalf("zona = %q", z)
+	}
+}
