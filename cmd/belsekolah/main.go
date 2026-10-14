@@ -80,7 +80,12 @@ func aturZonaWaktu(nama string) error {
 }
 
 func tulisPasswordAwal(dataDir, pw string) error {
-	return os.WriteFile(filepath.Join(dataDir, auth.NamaFilePasswordAwal), []byte(pw+"\n"), 0o600)
+	path := filepath.Join(dataDir, auth.NamaFilePasswordAwal)
+	if err := os.WriteFile(path, []byte(pw+"\n"), 0o600); err != nil {
+		return err
+	}
+	// WriteFile tidak mengubah mode file yang sudah ada.
+	return os.Chmod(path, 0o600)
 }
 
 func resetPassword(dataDir string) error {
@@ -139,8 +144,8 @@ func jalankan(dataDir, addr string, log *slog.Logger) error {
 		if err := tulisPasswordAwal(dataDir, pw); err != nil {
 			return err
 		}
-		log.Warn("password admin awal dibuat; ganti setelah login pertama",
-			"password", pw, "file", filepath.Join(dataDir, auth.NamaFilePasswordAwal))
+		log.Warn("password admin awal dibuat; baca file ini lalu ganti setelah login pertama",
+			"file", filepath.Join(dataDir, auth.NamaFilePasswordAwal))
 	}
 
 	pemutar := player.New(player.Mpv{}, cadangan)
@@ -159,7 +164,12 @@ func jalankan(dataDir, addr string, log *slog.Logger) error {
 	defer func() { <-selesai }()
 
 	sch := scheduler.New(scheduler.JamSistem{}, st, pemutar, audioDir, log)
-	go backup.JalankanHarian(ctx, st, filepath.Join(dataDir, "backup"), log)
+	selesaiBackup := make(chan struct{})
+	go func() {
+		defer close(selesaiBackup)
+		backup.JalankanHarian(ctx, st, filepath.Join(dataDir, "backup"), log)
+	}()
+	defer func() { <-selesaiBackup }() // harus selesai sebelum database ditutup
 
 	srv := &http.Server{
 		Addr:              addr,
@@ -186,6 +196,7 @@ func jalankan(dataDir, addr string, log *slog.Logger) error {
 	defer batalTutup()
 	if err := srv.Shutdown(tutup); err != nil {
 		log.Warn("web server tidak berhenti rapi", "err", err)
+		srv.Close()
 	}
 	log.Info("bel sekolah berhenti")
 

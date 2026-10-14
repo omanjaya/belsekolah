@@ -120,11 +120,12 @@ func passwordAwal(t *testing.T) string {
 }
 
 type riwayat struct {
-	JadwalID int64  `json:"jadwalId"`
-	Label    string `json:"label"`
-	Sumber   string `json:"sumber"`
-	Status   string `json:"status"`
-	Pesan    string `json:"pesan"`
+	Waktu    time.Time `json:"waktu"`
+	JadwalID int64     `json:"jadwalId"`
+	Label    string    `json:"label"`
+	Sumber   string    `json:"sumber"`
+	Status   string    `json:"status"`
+	Pesan    string    `json:"pesan"`
 }
 
 func tungguRiwayat(t *testing.T, k *klien, cocok func(riwayat) bool, batas time.Duration) riwayat {
@@ -223,13 +224,24 @@ func TestAlurLengkap(t *testing.T) {
 			"profilId": p.ProfilDefaultID, "hari": st.Hari, "jam": target.Format("15:04"),
 			"jenisBelId": idJenis["Masuk"], "label": "Uji E2E",
 		}, 201, &j)
+		if j.ID == 0 {
+			t.Fatal("id jadwal baru = 0")
+		}
 		r := tungguRiwayat(t, k, func(r riwayat) bool { return r.JadwalID == j.ID }, 150*time.Second)
 		if r.Status != "berhasil" {
 			t.Fatalf("bel terjadwal status %q: %s", r.Status, r.Pesan)
 		}
+		if d := r.Waktu.Sub(target); d < -5*time.Second || d > 5*time.Second {
+			t.Fatalf("waktu riwayat %s, mau sekitar %s", r.Waktu, target)
+		}
 	})
 
 	t.Run("darurat lalu hentikan", func(t *testing.T) {
+		// Aman: urutan Darurat 2x Sirene 4,5 dtk (~9 dtk, real-time lewat --ao=null),
+		// sedangkan stop dikirim 1 dtk setelah mulai.
+		if idJenis["Darurat"] == 0 {
+			t.Fatal("jenis bel Darurat tidak ada")
+		}
 		k.do("POST", "/api/bel/darurat", map[string]int64{"jenisBelId": idJenis["Darurat"]}, 202, nil)
 		time.Sleep(time.Second)
 		k.do("POST", "/api/bel/stop", nil, 200, nil)
@@ -258,7 +270,20 @@ func TestAlurLengkap(t *testing.T) {
 		k.do("POST", "/api/profil", map[string]string{"nama": "Setelah Backup"}, 201, nil)
 		k.unggah("/api/restore", "", "backup.zip", zipData, 202, nil)
 
-		time.Sleep(3 * time.Second)
+		// Tunggu proses lama benar-benar berhenti (permintaan mulai gagal), baru tunggu siap.
+		mati := false
+		for batas := time.Now().Add(30 * time.Second); time.Now().Before(batas); time.Sleep(100 * time.Millisecond) {
+			c := &http.Client{Timeout: 2 * time.Second}
+			resp, err := c.Get(dasar + "/api/sesi")
+			if err != nil {
+				mati = true
+				break
+			}
+			resp.Body.Close()
+		}
+		if !mati {
+			t.Fatal("proses lama tidak berhenti dalam 30 detik setelah restore")
+		}
 		tungguSiap(t)
 		k2 := baru(t)
 		k2.do("POST", "/api/login", map[string]string{"password": pwBaru}, 200, nil)
