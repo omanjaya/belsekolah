@@ -335,3 +335,61 @@ func TestSetVolumeDibatasi(t *testing.T) {
 		t.Fatalf("volume = %v, mau [100 0]", r.volume)
 	}
 }
+
+func TestBiasaMenghentikanTesYangSedangDiputar(t *testing.T) {
+	r := &fakeRunner{}
+	p, dir := mulai(t, r)
+	tes := buatFile(t, dir, "tes.wav")
+	tes2 := buatFile(t, dir, "tes2.wav")
+	bel := buatFile(t, dir, "bel.wav")
+	r.blokFile = tes[0]
+
+	chTes := putar(p, tes, Tes)
+	tungguDipanggil(t, r, "tes.wav")
+	chTes2 := putar(p, tes2, Tes) // antre di belakang tes pertama
+	chBel := putar(p, bel, Biasa)
+
+	if h := tunggu(t, chTes); h.status != Dihentikan {
+		t.Errorf("tes status = %s, mau dihentikan", h.status)
+	}
+	if h := tunggu(t, chTes2); h.status != Dihentikan {
+		t.Errorf("tes antre status = %s, mau dihentikan", h.status)
+	}
+	if h := tunggu(t, chBel); h.status != Berhasil {
+		t.Errorf("bel status = %s, mau berhasil", h.status)
+	}
+	if !sama(r.panggilan(), []string{"tes.wav", "bel.wav"}) {
+		t.Errorf("panggilan = %v", r.panggilan())
+	}
+}
+
+func TestTesTidakMemotongBel(t *testing.T) {
+	r := &fakeRunner{}
+	p, dir := mulai(t, r)
+	bel := buatFile(t, dir, "bel.wav")
+	tes := buatFile(t, dir, "tes.wav")
+	r.blokFile = bel[0]
+
+	chBel := putar(p, bel, Biasa)
+	tungguDipanggil(t, r, "bel.wav")
+	chTes := putar(p, tes, Tes)
+
+	time.Sleep(100 * time.Millisecond)
+	select {
+	case h := <-chBel:
+		t.Fatalf("bel terpotong oleh tes: %v", h)
+	case h := <-chTes:
+		t.Fatalf("tes selesai saat bel berjalan: %v", h)
+	default:
+	}
+	if !sama(r.panggilan(), []string{"bel.wav"}) {
+		t.Errorf("tes harus menunggu; panggilan = %v", r.panggilan())
+	}
+	p.Stop()
+	if h := tunggu(t, chBel); h.status != Dihentikan {
+		t.Errorf("bel = %s", h.status)
+	}
+	if h := tunggu(t, chTes); h.status != Dihentikan {
+		t.Errorf("tes = %s", h.status)
+	}
+}
