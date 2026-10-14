@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -12,6 +13,22 @@ import (
 func TestMpvBerhasil(t *testing.T) {
 	if err := (Mpv{Perintah: "true"}).Run(context.Background(), "x.wav", 50); err != nil {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestArgumenMpvAO(t *testing.T) {
+	for _, a := range argumenMpv("a.wav", 50, "") {
+		if strings.HasPrefix(a, "--ao=") {
+			t.Fatalf("tanpa env tidak boleh ada --ao")
+		}
+	}
+	dengan := argumenMpv("a.wav", 50, "null")
+	ada := false
+	for _, a := range dengan {
+		ada = ada || a == "--ao=null"
+	}
+	if !ada || dengan[len(dengan)-2] != "--" || dengan[len(dengan)-1] != "a.wav" {
+		t.Fatalf("argumen = %v", dengan)
 	}
 }
 
