@@ -200,6 +200,39 @@ func TestAlurLengkap(t *testing.T) {
 		k.unggah("/api/audio", "Palsu", "palsu.mp3", []byte("bukan audio"), 400, nil)
 	})
 
+	t.Run("TTS asli lewat edge-tts", func(t *testing.T) {
+		if os.Getenv("BEL_E2E_TTS") != "1" {
+			t.Skip("set BEL_E2E_TTS=1 untuk menguji layanan TTS asli (butuh internet)")
+		}
+		var suara []struct {
+			ID string `json:"id"`
+		}
+		k.do("GET", "/api/tts/suara", nil, 200, &suara)
+		if len(suara) != 2 {
+			t.Fatalf("suara = %+v", suara)
+		}
+		var pratinjau []byte
+		k.do("POST", "/api/tts/pratinjau", map[string]string{"teks": "Tes suara", "suara": "id-ID-GadisNeural"}, 200, &pratinjau)
+		if len(pratinjau) < 1000 {
+			t.Fatalf("pratinjau terlalu kecil: %d byte", len(pratinjau))
+		}
+		var a struct {
+			ID       int64  `json:"id"`
+			Sumber   string `json:"sumber"`
+			DurasiMS int64  `json:"durasiMs"`
+		}
+		k.do("POST", "/api/audio/tts", map[string]string{
+			"nama": "Pengumuman Istirahat", "teks": "Perhatian, waktunya istirahat.", "suara": "id-ID-ArdiNeural",
+		}, 201, &a)
+		if a.Sumber != "tts" || a.DurasiMS < 500 {
+			t.Fatalf("audio TTS = %+v", a)
+		}
+		k.do("PUT", fmt.Sprintf("/api/audio/%d/tts", a.ID), map[string]string{
+			"teks": "Perhatian, waktunya istirahat. Jangan lupa makan.", "suara": "id-ID-GadisNeural",
+		}, 200, nil)
+		k.do("POST", fmt.Sprintf("/api/audio/%d/tes", a.ID), nil, 202, nil)
+	})
+
 	t.Run("bel terjadwal berbunyi tepat waktu", func(t *testing.T) {
 		var p struct {
 			ProfilDefaultID int64 `json:"profilDefaultId"`

@@ -24,6 +24,7 @@ import (
 	"belsekolah/internal/scheduler"
 	"belsekolah/internal/sistem"
 	"belsekolah/internal/store"
+	"belsekolah/internal/tts"
 	"belsekolah/internal/webui"
 )
 
@@ -180,6 +181,7 @@ func jalankan(dataDir, addr string, log *slog.Logger) error {
 			Web: webui.FS(), Log: log, Now: time.Now,
 			CekNTP: sistem.CekNTP(), DurasiAudio: sistem.DurasiAudio,
 			MulaiUlang: func() { batal(errMulaiUlang) },
+			TTS:        tts.EdgeTTS{},
 		}),
 	}
 	go func() {
