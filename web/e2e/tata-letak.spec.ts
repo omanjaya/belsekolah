@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-const RUTE = ['/', '/jadwal', '/profil', '/libur', '/jenis-bel', '/suara', '/riwayat', '/pengaturan']
+const RUTE = ['/', '/jadwal', '/profil', '/template', '/libur', '/jenis-bel', '/suara', '/riwayat', '/pengaturan']
 
 test('laptop: sidebar penuh, isi selebar layar, dan sidebar bisa diciutkan', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
