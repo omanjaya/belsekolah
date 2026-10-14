@@ -8,6 +8,12 @@ cd "$(dirname "$0")/.."
 PORT_BEL="${BEL_PORT:-8080}"
 export BEL_PORT="$PORT_BEL"
 
+# Frontend yang di-embed tidak boleh berasal dari build E2E (mengandung kait __bel).
+if grep -rq __bel internal/webui/dist; then
+  echo "GAGAL: internal/webui/dist mengandung __bel. Bangun ulang: (cd web && env -u VITE_E2E npm run build)" >&2
+  exit 1
+fi
+
 docker compose down -v --remove-orphans
 trap 'docker compose logs --no-color belsekolah | tail -50; docker compose down -v' EXIT
 
