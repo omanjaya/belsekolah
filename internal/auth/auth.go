@@ -198,7 +198,8 @@ func (a *Auth) WajibGanti(ctx context.Context) (bool, error) {
 	return v == "1", err
 }
 
-func (a *Auth) GantiPassword(ctx context.Context, lama, baru string) error {
+// GantiPassword mengganti password dan mengakhiri semua sesi selain milik pemanggil (token).
+func (a *Auth) GantiPassword(ctx context.Context, token, lama, baru string) error {
 	ok, err := a.cocok(ctx, lama)
 	if err != nil {
 		return err
@@ -214,7 +215,17 @@ func (a *Auth) GantiPassword(ctx context.Context, lama, baru string) error {
 	case baru == lama:
 		return ErrPasswordSama
 	}
-	return a.simpan(ctx, baru, false)
+	if err := a.simpan(ctx, baru, false); err != nil {
+		return err
+	}
+	a.mu.Lock()
+	for t := range a.sesi {
+		if t != token {
+			delete(a.sesi, t)
+		}
+	}
+	a.mu.Unlock()
+	return nil
 }
 
 const alfabet = "abcdefghjkmnpqrstuvwxyz23456789"

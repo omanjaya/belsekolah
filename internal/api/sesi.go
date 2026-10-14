@@ -83,7 +83,11 @@ func (s *server) gantiPassword(w http.ResponseWriter, r *http.Request) {
 	if !bacaJSON(w, r, &p) {
 		return
 	}
-	err := s.Auth.GantiPassword(r.Context(), p.Lama, p.Baru)
+	token := ""
+	if c, err := r.Cookie(namaCookie); err == nil {
+		token = c.Value
+	}
+	err := s.Auth.GantiPassword(r.Context(), token, p.Lama, p.Baru)
 	switch {
 	case errors.Is(err, auth.ErrPasswordSalah):
 		tulisError(w, http.StatusBadRequest, "password lama salah")

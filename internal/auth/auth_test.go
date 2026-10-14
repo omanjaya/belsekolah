@@ -130,19 +130,19 @@ func TestKunciSetelahLimaGagal(t *testing.T) {
 
 func TestGantiPassword(t *testing.T) {
 	a, _, pw := siapkan(t)
-	if err := a.GantiPassword(ctx, "salah", "rahasia-baru"); !errors.Is(err, ErrPasswordSalah) {
+	if err := a.GantiPassword(ctx, "", "salah", "rahasia-baru"); !errors.Is(err, ErrPasswordSalah) {
 		t.Errorf("lama salah: %v", err)
 	}
-	if err := a.GantiPassword(ctx, pw, "pendek"); !errors.Is(err, ErrPasswordPendek) {
+	if err := a.GantiPassword(ctx, "", pw, "pendek"); !errors.Is(err, ErrPasswordPendek) {
 		t.Errorf("baru pendek: %v", err)
 	}
-	if err := a.GantiPassword(ctx, pw, strings.Repeat("x", 73)); !errors.Is(err, ErrPasswordPanjang) {
+	if err := a.GantiPassword(ctx, "", pw, strings.Repeat("x", 73)); !errors.Is(err, ErrPasswordPanjang) {
 		t.Errorf("baru terlalu panjang: %v", err)
 	}
-	if err := a.GantiPassword(ctx, pw, pw); !errors.Is(err, ErrPasswordSama) {
+	if err := a.GantiPassword(ctx, "", pw, pw); !errors.Is(err, ErrPasswordSama) {
 		t.Errorf("baru sama dengan lama: %v", err)
 	}
-	if err := a.GantiPassword(ctx, pw, "rahasia-baru"); err != nil {
+	if err := a.GantiPassword(ctx, "", pw, "rahasia-baru"); err != nil {
 		t.Fatal(err)
 	}
 	if w, _ := a.WajibGanti(ctx); w {
@@ -158,7 +158,7 @@ func TestGantiPassword(t *testing.T) {
 
 func TestResetPassword(t *testing.T) {
 	a, _, pw := siapkan(t)
-	if err := a.GantiPassword(ctx, pw, "rahasia-baru"); err != nil {
+	if err := a.GantiPassword(ctx, "", pw, "rahasia-baru"); err != nil {
 		t.Fatal(err)
 	}
 	token, _ := a.Login(ctx, "1.1.1.1", "rahasia-baru")
@@ -215,5 +215,26 @@ func TestLoginParalelTidakMenembusKunci(t *testing.T) {
 	}
 	if _, err := a.Login(ctx, "10.0.0.5", pw); !errors.Is(err, ErrTerkunci) {
 		t.Fatalf("password benar setelah terkunci: %v, mau ErrTerkunci", err)
+	}
+}
+
+func TestGantiPasswordMengakhiriSesiLain(t *testing.T) {
+	a, _, pw := siapkan(t)
+	pemanggil, err := a.Login(ctx, "1.1.1.1", pw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lain, err := a.Login(ctx, "2.2.2.2", pw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := a.GantiPassword(ctx, pemanggil, pw, "rahasia-baru"); err != nil {
+		t.Fatal(err)
+	}
+	if !a.Valid(pemanggil) {
+		t.Error("sesi pemanggil harus tetap berlaku")
+	}
+	if a.Valid(lain) {
+		t.Error("sesi lain harus berakhir")
 	}
 }
