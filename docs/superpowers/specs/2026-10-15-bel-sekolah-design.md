@@ -199,3 +199,39 @@ Svelte + Tailwind, bahasa Indonesia, mobile-first, tombol besar.
 - **`tts`**: server WebSocket tiruan; satu tes manual opsional ke layanan asli.
 - **Frontend**: verifikasi manual di browser.
 - **Perangkat**: checklist manual di mini PC — cabut listrik, cabut LAN, ubah jam, bunyi di amplifier, akses dari Android & iPhone.
+
+## 13. Lingkungan Development (Docker)
+
+Docker **hanya** dipakai untuk development dan pengujian; deploy di mini PC tetap binary + systemd (§3).
+
+- `Dockerfile` multi-stage: build Go (dan frontend setelah Rencana 4) → runtime `debian:trixie-slim` berisi `mpv`, `ffmpeg` (untuk `ffprobe`), `ca-certificates`, `tzdata` — paket yang sama dengan mini PC.
+- Audio di container diarahkan ke perangkat ALSA `null` (`/etc/asound.conf`), sehingga `mpv` benar-benar berjalan tanpa speaker.
+- `compose.yaml`: port `8080`, volume data `/var/lib/belsekolah`, `TZ=Asia/Jakarta`, `restart: unless-stopped`.
+- Dipakai untuk tes end-to-end API dan browser terhadap binary yang sama dengan produksi.
+
+## 14. Kontrak API (JSON)
+
+Semua di bawah `/api`, body dan respons JSON (kecuali upload/unduh). Error: `{"error": "<pesan Indonesia>"}` dengan kode 400 (validasi), 401 (belum login), 403 (wajib ganti password), 404, 409 (dipakai/duplikat/tumpang tindih), 429 (login terkunci). Semua perubahan data memicu muat ulang penjadwal.
+
+| Metode & Path | Keterangan |
+|---|---|
+| `POST /login` `{password}` | Set cookie sesi; balas `{wajibGantiPassword}` |
+| `POST /logout`, `GET /sesi` | Sesi saat ini |
+| `POST /password` `{lama, baru}` | Ganti password (min. 8 karakter) |
+| `GET /status` | Jam, profil/libur hari ini, bel hari ini + status, bel berikutnya, peringatan |
+| `POST /bel/manual` `{jenisBelId}`, `POST /bel/darurat` `{jenisBelId}`, `POST /bel/stop` | Bel manual/darurat/hentikan |
+| `GET/POST /profil`, `PUT/DELETE /profil/{id}` | Profil |
+| `GET /jadwal?profil=`, `POST /jadwal`, `PUT/DELETE /jadwal/{id}`, `POST /jadwal/salin` | Jadwal; salin mengganti isi hari tujuan |
+| `GET/POST /periode`, `PUT/DELETE /periode/{id}` | Periode khusus |
+| `GET/POST /libur`, `PUT/DELETE /libur/{id}` | Libur |
+| `GET/POST /jenis-bel`, `PUT/DELETE /jenis-bel/{id}`, `POST /jenis-bel/{id}/tes` | Jenis bel + urutan audio |
+| `GET /audio`, `POST /audio` (multipart), `PUT/DELETE /audio/{id}`, `GET /audio/{id}/file`, `POST /audio/{id}/tes` | Pustaka suara |
+| `GET /riwayat?tanggal=&status=&batas=` | Riwayat |
+| `GET/PUT /pengaturan` `{volume, profilDefaultId}` | Pengaturan |
+| `GET /sistem` | Versi, IP, zona waktu, jam, status NTP |
+| `GET /backup`, `POST /restore` (multipart zip) | Backup/restore; restore memulai ulang aplikasi |
+
+- Password awal dibuat acak saat database baru, dicetak ke log dan ditulis ke `<data>/password-awal.txt` (mode 0600, dihapus setelah diganti). Flag `-reset-password` membuat password acak baru lalu keluar.
+- Sesi disimpan di memori (hilang saat aplikasi restart), kedaluwarsa 7 hari sejak terakhir dipakai.
+- Permintaan yang mengubah data wajib `Origin` sama dengan host (atau tanpa `Origin`), sebagai perlindungan CSRF tambahan selain `SameSite=Strict`.
+- Restore: aplikasi keluar dengan kode 3 setelah mengganti data; systemd/Docker memulainya lagi.
