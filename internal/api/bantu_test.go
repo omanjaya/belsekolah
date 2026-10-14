@@ -245,3 +245,19 @@ func pesanError(t *testing.T, resp *http.Response) string {
 }
 
 func berisi(s, sub string) bool { return strings.Contains(s, sub) }
+
+func storeRiwayat(l *lingkungan, status string) store.Riwayat {
+	return store.Riwayat{Waktu: l.now, Label: "Uji", Sumber: store.SumberManual, Status: status}
+}
+
+func tungguSampai(t *testing.T, kondisi func() bool) {
+	t.Helper()
+	batas := time.Now().Add(3 * time.Second)
+	for time.Now().Before(batas) {
+		if kondisi() {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("kondisi tidak terpenuhi dalam 3 detik")
+}
