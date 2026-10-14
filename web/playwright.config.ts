@@ -27,7 +27,7 @@ export default defineConfig({
   webServer: process.env.BEL_URL
     ? undefined
     : {
-        command: `rm -rf ${DATA_DIR} && npm run build && cd .. && go run ./cmd/belsekolah -data web/${DATA_DIR} -addr 127.0.0.1:${port} -tz Asia/Jakarta`,
+        command: `rm -rf ${DATA_DIR} && VITE_E2E=1 npm run build && cd .. && go run ./cmd/belsekolah -data web/${DATA_DIR} -addr 127.0.0.1:${port} -tz Asia/Jakarta`,
         url: `http://127.0.0.1:${port}/api/sesi`,
         reuseExistingServer: false,
         timeout: 180_000,

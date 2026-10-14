@@ -28,7 +28,7 @@
   {#if buka}
     <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
       <h2 id="{uid}-judul" class="text-lg font-semibold">{judul}</h2>
-      <button type="button" class="rounded-lg p-2 hover:bg-slate-100" aria-label="Tutup" onclick={() => (buka = false)}>
+      <button type="button" class="-my-2 -mr-2 inline-grid size-11 place-items-center rounded-lg hover:bg-slate-100" aria-label="Tutup" onclick={() => (buka = false)}>
         <X class="size-5" />
       </button>
     </div>

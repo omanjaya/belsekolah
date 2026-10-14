@@ -29,11 +29,11 @@ export function formatRentang(mulai: string, selesai: string): string {
 
 export function formatDurasi(ms: number): string {
   const detik = ms / 1000
-  if (detik < 60) {
+  if (Math.round(detik * 10) / 10 < 60) {
     return `${detik.toFixed(detik % 1 === 0 ? 0 : 1).replace('.', ',')} dtk`
   }
-  const menit = Math.floor(detik / 60)
-  return `${menit} mnt ${Math.round(detik - menit * 60)} dtk`
+  const total = Math.round(detik)
+  return `${Math.floor(total / 60)} mnt ${total % 60} dtk`
 }
 
 export function hitungMundur(ms: number): string {

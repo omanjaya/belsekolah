@@ -22,6 +22,8 @@ describe('format', () => {
     expect(formatDurasi(0)).toBe('0 dtk')
     expect(formatDurasi(1800)).toBe('1,8 dtk')
     expect(formatDurasi(65000)).toBe('1 mnt 5 dtk')
+    expect(formatDurasi(59999)).toBe('1 mnt 0 dtk')
+    expect(formatDurasi(119600)).toBe('2 mnt 0 dtk')
   })
   it('hitungMundur', () => {
     expect(hitungMundur(-5)).toBe('sekarang')

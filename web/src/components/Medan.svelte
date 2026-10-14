@@ -1,4 +1,5 @@
 <script lang="ts">
+  // Input di dalam Medan sebaiknya memakai aria-describedby="{untuk}-galat" dan aria-invalid saat ada galat.
   import type { Snippet } from 'svelte'
   let { label, untuk, galat = '', bantuan = '', children }: {
     label: string
@@ -13,7 +14,7 @@
   <label for={untuk} class="text-sm font-medium text-slate-800">{label}</label>
   {@render children()}
   {#if galat}
-    <p class="text-sm text-red-600" role="alert">{galat}</p>
+    <p id="{untuk}-galat" class="text-sm text-red-600" role="alert">{galat}</p>
   {:else if bantuan}
     <p class="text-sm text-slate-500">{bantuan}</p>
   {/if}
