@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -184,18 +185,87 @@ func TestGagalSekaliDicobaUlang(t *testing.T) {
 	}
 }
 
-func TestGagalDuaKali(t *testing.T) {
+func TestGagalDuaKaliPakaiCadangan(t *testing.T) {
 	r := &fakeRunner{}
 	p, dir := mulai(t, r)
 	files := buatFile(t, dir, "a.wav", "b.wav")
 	r.gagal = map[string]int{files[0]: 2}
 	h := tunggu(t, putar(p, files, Biasa))
-	if h.status != Gagal {
-		t.Fatalf("status = %s, mau gagal", h.status)
+	if h.status != Cadangan {
+		t.Fatalf("status = %s (%s), mau cadangan", h.status, h.pesan)
+	}
+	if !strings.Contains(h.pesan, "mpv keluar") || !strings.Contains(h.pesan, "cadangan") {
+		t.Errorf("pesan = %q, harus menyebut error mpv dan nada cadangan", h.pesan)
 	}
 	// File berikutnya tetap diputar.
-	if !sama(r.panggilan(), []string{"a.wav", "a.wav", "b.wav"}) {
+	if !sama(r.panggilan(), []string{"a.wav", "a.wav", "cadangan.wav", "b.wav"}) {
 		t.Fatalf("panggilan = %v", r.panggilan())
+	}
+}
+
+func TestCadanganJugaGagal(t *testing.T) {
+	r := &fakeRunner{}
+	p, dir := mulai(t, r)
+	files := buatFile(t, dir, "a.wav")
+	cad := filepath.Join(dir, "cadangan.wav")
+	r.gagal = map[string]int{files[0]: 2, cad: 1}
+	h := tunggu(t, putar(p, files, Biasa))
+	if h.status != Gagal {
+		t.Fatalf("status = %s (%s), mau gagal", h.status, h.pesan)
+	}
+	if !sama(r.panggilan(), []string{"a.wav", "a.wav", "cadangan.wav"}) {
+		t.Fatalf("panggilan = %v", r.panggilan())
+	}
+}
+
+func TestSelesaiMemanggilPlayLagi(t *testing.T) {
+	r := &fakeRunner{}
+	p, dir := mulai(t, r)
+	a := buatFile(t, dir, "a.wav")
+	b := buatFile(t, dir, "b.wav")
+	ch1 := make(chan hasil, 1)
+	ch2 := make(chan hasil, 1)
+	p.Play(Permintaan{Files: a, Selesai: func(s Status, pesan string) {
+		p.Play(Permintaan{Files: b, Selesai: func(s Status, pesan string) { ch2 <- hasil{s, pesan} }})
+		ch1 <- hasil{s, pesan}
+	}})
+	tunggu(t, ch1)
+	if h := tunggu(t, ch2); h.status != Berhasil {
+		t.Fatalf("status = %s, mau berhasil", h.status)
+	}
+}
+
+func TestCtxBerhentiMembuangAntrean(t *testing.T) {
+	r := &fakeRunner{}
+	dir := t.TempDir()
+	cad := buatFile(t, dir, "cadangan.wav")[0]
+	a := buatFile(t, dir, "a.wav")
+	b := buatFile(t, dir, "b.wav")
+	r.blokFile = a[0]
+	p := New(r, cad)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	berhenti := make(chan struct{})
+	go func() { p.Jalankan(ctx); close(berhenti) }()
+
+	chA := putar(p, a, Biasa)
+	tungguDipanggil(t, r, "a.wav")
+	chB := putar(p, b, Biasa)
+	cancel()
+
+	if h := tunggu(t, chA); h.status != Dihentikan {
+		t.Errorf("A status = %s, mau dihentikan", h.status)
+	}
+	if h := tunggu(t, chB); h.status != Dihentikan {
+		t.Errorf("B status = %s, mau dihentikan", h.status)
+	}
+	select {
+	case <-berhenti:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Jalankan tidak kembali")
+	}
+	if !sama(r.panggilan(), []string{"a.wav"}) {
+		t.Errorf("panggilan = %v, b.wav tidak boleh diputar", r.panggilan())
 	}
 }
 

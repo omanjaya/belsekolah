@@ -29,7 +29,9 @@ const (
 )
 
 // Permintaan adalah satu bel: beberapa file diputar berurutan.
-// Selesai (boleh nil) dipanggil tepat sekali dari goroutine player.
+// Selesai (boleh nil) dipanggil tepat sekali: dari goroutine player, atau
+// secara sinkron dari goroutine yang memanggil Play/Stop bila permintaan
+// dibuang dari antrean (juga saat Jalankan berhenti).
 type Permintaan struct {
 	Files     []string
 	Prioritas Prioritas
@@ -105,11 +107,16 @@ func (p *Player) Stop() {
 // Jalankan memproses antrean sampai ctx selesai.
 func (p *Player) Jalankan(ctx context.Context) {
 	for {
+		if ctx.Err() != nil {
+			p.kosongkan()
+			return
+		}
 		p.mu.Lock()
 		if len(p.antrean) == 0 {
 			p.mu.Unlock()
 			select {
 			case <-ctx.Done():
+				p.kosongkan()
 				return
 			case <-p.sinyal:
 				continue
@@ -129,6 +136,17 @@ func (p *Player) Jalankan(ctx context.Context) {
 		p.mu.Unlock()
 		batal()
 		selesai(req, status, pesan)
+	}
+}
+
+// kosongkan membuang seluruh antrean saat aplikasi berhenti.
+func (p *Player) kosongkan() {
+	p.mu.Lock()
+	dibuang := p.antrean
+	p.antrean = nil
+	p.mu.Unlock()
+	for _, d := range dibuang {
+		selesai(d, Dihentikan, "aplikasi berhenti")
 	}
 }
 
@@ -178,8 +196,12 @@ func (p *Player) putar(ctx context.Context, files []string, volume int) (Status,
 			return Dihentikan, "pemutaran dihentikan"
 		}
 		if err != nil {
-			status = lebihBuruk(status, Gagal)
-			pesan = append(pesan, fmt.Sprintf("gagal memutar %s: %v", filepath.Base(f), err))
+			st, ps := p.putarCadangan(ctx, volume, fmt.Sprintf("gagal memutar %s: %v", filepath.Base(f), err))
+			status = lebihBuruk(status, st)
+			pesan = append(pesan, ps)
+			if st == Dihentikan {
+				return Dihentikan, strings.Join(pesan, "; ")
+			}
 		}
 	}
 	return status, strings.Join(pesan, "; ")
