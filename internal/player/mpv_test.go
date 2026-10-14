@@ -17,18 +17,32 @@ func TestMpvBerhasil(t *testing.T) {
 }
 
 func TestArgumenMpvAO(t *testing.T) {
-	for _, a := range argumenMpv("a.wav", 50, "") {
+	for _, a := range argumenMpv("a.wav", 50, "", "") {
 		if strings.HasPrefix(a, "--ao=") {
 			t.Fatalf("tanpa env tidak boleh ada --ao")
 		}
 	}
-	dengan := argumenMpv("a.wav", 50, "null")
+	dengan := argumenMpv("a.wav", 50, "null", "")
 	ada := false
 	for _, a := range dengan {
 		ada = ada || a == "--ao=null"
 	}
 	if !ada || dengan[len(dengan)-2] != "--" || dengan[len(dengan)-1] != "a.wav" {
 		t.Fatalf("argumen = %v", dengan)
+	}
+}
+
+func TestArgumenMpvDevice(t *testing.T) {
+	arg := argumenMpv("/a/b.wav", 80, "", "alsa/plughw:CARD=PCH,DEV=0")
+	gabung := strings.Join(arg, " ")
+	if !strings.Contains(gabung, "--audio-device=alsa/plughw:CARD=PCH,DEV=0") {
+		t.Fatalf("argumen = %v", arg)
+	}
+	if arg[len(arg)-2] != "--" || arg[len(arg)-1] != "/a/b.wav" {
+		t.Fatalf("'--' dan file harus di akhir: %v", arg)
+	}
+	if strings.Contains(strings.Join(argumenMpv("/a/b.wav", 80, "", ""), " "), "--audio-device") {
+		t.Fatal("tanpa device tidak boleh ada --audio-device")
 	}
 }
 
