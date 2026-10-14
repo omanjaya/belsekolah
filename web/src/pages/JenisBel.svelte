@@ -1,16 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { ArrowDown, ArrowUp, Pencil, Plus, Trash2, Volume2, X } from '@lucide/svelte'
+  import { ArrowDown, ArrowUp, X } from '@lucide/svelte'
   import JudulHalaman from '../components/JudulHalaman.svelte'
-  import Kosong from '../components/Kosong.svelte'
+  import BarAlat from '../components/BarAlat.svelte'
+  import Tabel from '../components/Tabel.svelte'
   import Memuat from '../components/Memuat.svelte'
   import GalatMuat from '../components/GalatMuat.svelte'
-  import Modal from '../components/Modal.svelte'
+  import PanelGeser from '../components/PanelGeser.svelte'
   import Medan from '../components/Medan.svelte'
   import Tombol from '../components/Tombol.svelte'
   import { api, type Audio, type JenisBel } from '../lib/api'
-  import { formatDurasi } from '../lib/format'
-  import { konfirmasi } from '../lib/konfirmasi.svelte'
+    import { konfirmasi } from '../lib/konfirmasi.svelte'
   import { beriTahu, galat } from '../lib/notif.svelte'
 
   const WARNA = [
@@ -64,10 +64,6 @@
     }
   }
   onMount(muat)
-
-  function total(j: JenisBel) {
-    return formatDurasi(j.audioIds.reduce((s, id) => s + (audioPer.get(id)?.durasiMs ?? 0), 0))
-  }
 
   function bukaForm(j?: JenisBel) {
     idUbah = j?.id ?? null
@@ -142,47 +138,42 @@
   }
 </script>
 
-<JudulHalaman judul="Jenis Bel" keterangan="Setiap jenis bel adalah urutan suara yang diputar berurutan.">
-  {#snippet aksi()}
-    <Tombol onclick={() => bukaForm()}><Plus class="size-5" /> Tambah jenis bel</Tombol>
-  {/snippet}
-</JudulHalaman>
+<JudulHalaman judul="Jenis Bel" keterangan="Setiap jenis bel adalah urutan suara yang diputar berurutan." />
 
 {#if memuat}
   <Memuat />
 {:else if galatMuat}
   <GalatMuat pesan={galatMuat} oncoba={muat} />
-{:else if daftar.length === 0}
-  <Kosong pesan="Belum ada jenis bel. Tambahkan yang pertama." />
 {:else}
-  <ul class="grid gap-3 md:grid-cols-2">
+  <BarAlat>
+    {#snippet kanan()}
+      <Tombol onclick={() => bukaForm()}>+ Tambah jenis bel</Tombol>
+    {/snippet}
+  </BarAlat>
+
+  <Tabel label="Daftar jenis bel" jumlah={daftar.length} kosong="Belum ada jenis bel. Tambahkan yang pertama.">
+    {#snippet kepala()}
+      <th class="w-10"><span class="sr-only">Warna</span></th>
+      <th>Nama</th>
+      <th>Urutan suara</th>
+      <th class="text-right">Aksi</th>
+    {/snippet}
     {#each daftar as j (j.id)}
-      <li class="flex overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
-        <span class="w-2 shrink-0" style:background-color={j.warna} aria-hidden="true"></span>
-        <div class="min-w-0 flex-1 p-4">
-          <h2 class="break-words text-lg font-semibold text-slate-900">{j.nama}</h2>
-          <p class="mt-1 break-words text-sm text-slate-600">
-            {j.audioIds.map((id, i) => `${i + 1}. ${namaAudio(id)}`).join(', ')}
-          </p>
-          <p class="mt-1 text-sm text-slate-500">Total {total(j)}</p>
-          <div class="mt-3 flex flex-wrap gap-2">
-            <Tombol varian="kedua" sibuk={tesId === j.id} onclick={() => tes(j)} aria-label="Tes di speaker {j.nama}">
-              <Volume2 class="size-4" /> Tes di speaker
-            </Tombol>
-            <Tombol varian="kedua" onclick={() => bukaForm(j)} aria-label="Ubah {j.nama}">
-              <Pencil class="size-4" /> Ubah
-            </Tombol>
-            <Tombol varian="bahaya-teks" onclick={() => hapus(j)} aria-label="Hapus {j.nama}">
-              <Trash2 class="size-4" /> Hapus
-            </Tombol>
-          </div>
-        </div>
-      </li>
+      <tr>
+        <td><span class="block size-4 rounded-full" style:background-color={j.warna} aria-hidden="true"></span></td>
+        <td class="font-semibold break-words">{j.nama}</td>
+        <td class="break-words text-slate-600">{j.audioIds.map((id) => namaAudio(id)).join(' → ') || '-'}</td>
+        <td class="text-right whitespace-nowrap">
+          <button type="button" class="min-h-11 rounded-lg px-3 text-slate-700 hover:bg-slate-100 disabled:opacity-50" disabled={tesId === j.id} aria-label="Tes di speaker {j.nama}" onclick={() => tes(j)}>Tes</button>
+          <button type="button" class="min-h-11 rounded-lg px-3 text-slate-700 hover:bg-slate-100" aria-label="Ubah {j.nama}" onclick={() => bukaForm(j)}>Ubah</button>
+          <button type="button" class="min-h-11 rounded-lg px-3 text-red-700 hover:bg-red-50" aria-label="Hapus {j.nama}" onclick={() => hapus(j)}>Hapus</button>
+        </td>
+      </tr>
     {/each}
-  </ul>
+  </Tabel>
 {/if}
 
-<Modal bind:buka={formBuka} judul={idUbah === null ? 'Tambah jenis bel' : 'Ubah jenis bel'}>
+<PanelGeser bind:buka={formBuka} judul={idUbah === null ? 'Tambah jenis bel' : 'Ubah jenis bel'}>
   <form id="form-jenis" onsubmit={simpan} class="flex flex-col gap-4" novalidate>
     <Medan label="Nama" untuk="jb-nama" galat={galatNama}>
       <input id="jb-nama" class={kelasInput} bind:value={nama} autocomplete="off" aria-invalid={!!galatNama} aria-describedby={galatNama ? 'jb-nama-galat' : undefined} />
@@ -239,4 +230,4 @@
     <Tombol varian="kedua" onclick={() => (formBuka = false)}>Batal</Tombol>
     <Tombol type="submit" form="form-jenis" sibuk={menyimpan}>Simpan</Tombol>
   {/snippet}
-</Modal>
+</PanelGeser>
