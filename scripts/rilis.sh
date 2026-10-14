@@ -5,11 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 VERSI="${1:-$(git describe --tags --always --dirty)}"
-if [[ -f web/package.json ]]; then
-  (cd web && npm ci && npm run build)
-else
-  echo "peringatan: web/ belum ada, memakai internal/webui/dist apa adanya" >&2
-fi
+(cd web && npm ci && npm run build)
 go vet ./...
 go test ./...
 

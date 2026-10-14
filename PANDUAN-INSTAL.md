@@ -6,7 +6,7 @@ Panduan ini untuk operator sekolah. Ikuti langkahnya berurutan. Tidak perlu paha
 
 - Mini PC x86 dengan SSD dan RAM minimal 2 GB.
 - Kabel audio 3.5 mm ke input amplifier (AUX atau LINE IN).
-- Kabel LAN.
+- Kabel LAN. Mini PC harus terhubung ke internet selama pemasangan (untuk apt dan pipx).
 - Flashdisk minimal 4 GB.
 - Akses admin ke router sekolah.
 
@@ -24,7 +24,15 @@ Panduan ini untuk operator sekolah. Ikuti langkahnya berurutan. Tidak perlu paha
 3. Colok flashdisk ke mini PC, nyalakan, lalu pilih boot dari flashdisk (biasanya F12 atau F11).
 4. Ikuti pemasang Debian. Jangan pilih lingkungan desktop.
 5. Pada pilihan perangkat lunak, centang **SSH server** dan **standard system utilities**.
-6. Buat satu user admin dan catat password-nya.
+6. Saat diminta **password root**, biarkan KOSONG (langsung tekan Enter). Dengan begitu Debian memasang `sudo` dan memasukkan user admin ke grup sudo.
+7. Buat satu user admin dan catat password-nya.
+
+Jika password root sudah terlanjur diisi, `sudo` belum ada. Setelah Debian terpasang, jalankan:
+
+1. `su -` (masukkan password root).
+2. `apt install sudo`
+3. `usermod -aG sudo NAMA_USER` (ganti dengan nama user admin).
+4. Keluar (`exit`) dari semua sesi, lalu login lagi.
 
 ## 4. IP tetap
 
@@ -38,13 +46,13 @@ Agar alamat mini PC tidak berganti, atur DHCP reservation di router.
 ## 5. Pasang aplikasi
 
 1. Dari komputer lain, salin paket ke mini PC:
-   `scp belsekolah-*.tar.gz admin@192.168.1.50:`
+   `scp belsekolah-*-linux-amd64.tar.gz admin@192.168.1.50:`
 2. Di mini PC (lewat SSH), ekstrak dan masuk ke foldernya:
    ```
-   tar xzf belsekolah-*.tar.gz
-   cd belsekolah-*/
+   tar xzf belsekolah-*-linux-amd64.tar.gz
+   cd belsekolah-*-linux-amd64/
    ```
-3. Jalankan pemasang:
+3. Pastikan mini PC terhubung ke internet (pemasang mengunduh paket lewat apt dan pipx), lalu jalankan pemasang:
    ```
    sudo ./install.sh
    ```
