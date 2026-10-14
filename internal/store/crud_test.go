@@ -285,3 +285,18 @@ func TestCariRiwayat(t *testing.T) {
 	_, err = s.CariRiwayat(ctx, FilterRiwayat{Status: "aneh"})
 	harapValidasi(t, err)
 }
+func TestUpdateAudioTTS(t *testing.T) {
+	s := bukaStore(t)
+	id := harus(s.CreateAudio(ctx, Audio{Nama: "Pengumuman", Sumber: "tts", File: "tts-1.mp3", TeksTTS: "lama", SuaraTTS: "id-ID-GadisNeural", Dibuat: time.Now()}))(t)
+	if err := s.UpdateAudioTTS(ctx, id, "baru", "id-ID-ArdiNeural", 2300); err != nil {
+		t.Fatal(err)
+	}
+	a := harus(s.GetAudio(ctx, id))(t)
+	if a.TeksTTS != "baru" || a.SuaraTTS != "id-ID-ArdiNeural" || a.DurasiMS != 2300 {
+		t.Fatalf("audio = %+v", a)
+	}
+	up := harus(s.CreateAudio(ctx, Audio{Nama: "Lagu", Sumber: "upload", File: "u.mp3", Dibuat: time.Now()}))(t)
+	if err := s.UpdateAudioTTS(ctx, up, "x", "id-ID-ArdiNeural", 1); !errors.Is(err, ErrTidakAda) {
+		t.Errorf("update audio non-TTS: %v, mau ErrTidakAda", err)
+	}
+}
