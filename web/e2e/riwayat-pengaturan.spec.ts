@@ -47,7 +47,8 @@ test('ganti password lalu kembalikan', async ({ page, request }) => {
 
 test('info sistem dan tautan backup', async ({ page }) => {
   await page.goto('/pengaturan')
-  await expect(page.getByText('Zona waktu')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Info sistem' })).toBeVisible()
+  await expect(page.getByText('WIB (Asia/Jakarta)')).toBeVisible()
   await expect(page.getByText(/^http:\/\/\d+\.\d+\.\d+\.\d+$/).first()).toBeVisible()
   const unduh = page.waitForEvent('download')
   await page.getByRole('link', { name: 'Unduh backup' }).click()
