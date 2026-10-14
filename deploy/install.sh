@@ -4,8 +4,8 @@
 # Aman dijalankan ulang: pemasangan berikutnya memperbarui binary dan konfigurasi.
 set -euo pipefail
 
-TZ_SEKOLAH="Asia/Jakarta"
-NAMA_HOST="bel"
+TZ_SEKOLAH=""
+NAMA_HOST=""
 PERANGKAT_AUDIO=""
 UJI="${BELSEKOLAH_UJI:-0}"
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -27,6 +27,18 @@ done
 # shellcheck source=/dev/null
 [[ -r /etc/os-release ]] && . /etc/os-release
 [[ "${ID:-}" == "debian" ]] || gagal "skrip ini untuk Debian (terdeteksi: ${ID:-tidak diketahui})"
+
+# Pemasangan ulang tanpa --tz / --hostname mempertahankan nilai yang sudah ada,
+# agar jadwal bel tidak bergeser.
+KONFIG=/etc/default/belsekolah
+if [[ -z "$TZ_SEKOLAH" ]]; then
+  [[ -f "$KONFIG" ]] && TZ_SEKOLAH="$(sed -n 's/^BELSEKOLAH_TZ=//p' "$KONFIG" | tail -n 1)"
+  TZ_SEKOLAH="${TZ_SEKOLAH:-Asia/Jakarta}"
+fi
+if [[ -z "$NAMA_HOST" ]]; then
+  if [[ -f "$KONFIG" ]]; then NAMA_HOST="$(hostname)"; else NAMA_HOST="bel"; fi
+fi
+[[ "$NAMA_HOST" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ ]] || gagal "hostname tidak valid: $NAMA_HOST (pakai huruf kecil, angka, dan tanda minus)"
 [[ -e "/usr/share/zoneinfo/$TZ_SEKOLAH" ]] || gagal "zona waktu tidak dikenal: $TZ_SEKOLAH"
 
 case "$(dpkg --print-architecture)" in
@@ -36,6 +48,9 @@ case "$(dpkg --print-architecture)" in
 esac
 BINARY="$DIR/belsekolah-linux-$ARSITEKTUR"
 [[ -x "$BINARY" ]] || gagal "binary $BINARY tidak ditemukan di paket"
+for f in PANDUAN-INSTAL.md belsekolah.service; do
+  [[ -f "$DIR/$f" ]] || gagal "berkas $f tidak ditemukan di paket"
+done
 
 jalankan() {
   # Di mode uji (container tanpa systemd) perintah sistem dilewati.
@@ -51,7 +66,8 @@ apt-get install -y -q --no-install-recommends \
 
 pesan "Memasang edge-tts (suara TTS)"
 export PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin
-if pipx list --short 2>/dev/null | grep -q '^edge-tts '; then
+DAFTAR_PIPX="$(pipx list --short 2>/dev/null || true)"
+if grep -q '^edge-tts ' <<<"$DAFTAR_PIPX"; then
   pipx upgrade edge-tts || true
 else
   pipx install edge-tts

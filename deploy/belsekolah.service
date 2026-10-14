@@ -2,6 +2,7 @@
 Description=Bel Sekolah otomatis
 Documentation=file:///usr/local/share/doc/belsekolah/PANDUAN-INSTAL.md
 After=network-online.target sound.target
+StartLimitIntervalSec=0
 Wants=network-online.target
 
 [Service]
@@ -10,6 +11,7 @@ User=belsekolah
 Group=belsekolah
 SupplementaryGroups=audio
 Environment=HOME=/var/lib/belsekolah
+Environment=BELSEKOLAH_TZ=Asia/Jakarta
 EnvironmentFile=-/etc/default/belsekolah
 ExecStart=/usr/local/bin/belsekolah -data /var/lib/belsekolah -addr :80 -tz ${BELSEKOLAH_TZ}
 Restart=always
