@@ -3,5 +3,4 @@
 /tmp-data/
 /.superpowers/
 web/node_modules/
-web/dist/
 /.claude/worktrees/
