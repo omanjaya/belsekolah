@@ -57,7 +57,14 @@ func jalankan(dataDir string, log *slog.Logger) error {
 	}
 
 	pemutar := player.New(player.Mpv{}, cadangan)
-	go pemutar.Jalankan(ctx)
+	selesai := make(chan struct{})
+	go func() {
+		defer close(selesai)
+		pemutar.Jalankan(ctx)
+	}()
+	// Didaftarkan setelah defer st.Close(), jadi berjalan lebih dulu: pemutar harus
+	// selesai (Selesai -> InsertRiwayat) sebelum database ditutup.
+	defer func() { <-selesai }()
 
 	sch := scheduler.New(scheduler.JamSistem{}, st, pemutar, audioDir, log)
 	log.Info("bel sekolah berjalan", "data", dataDir, "zona_waktu", time.Now().Format("MST -07:00"))

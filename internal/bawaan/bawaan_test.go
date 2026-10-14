@@ -74,6 +74,33 @@ func TestPasang_Idempoten(t *testing.T) {
 	}
 }
 
+func TestPasang_JenisBelSebagianDilengkapi(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	st, err := store.Open(filepath.Join(dir, "bel.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	masuk, err := st.CreateJenisBel(ctx, "Masuk", "#000000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Pasang(ctx, st, dir, time.Now()); err != nil {
+		t.Fatalf("Pasang setelah seed sebagian: %v", err)
+	}
+	jenis, err := st.ListJenisBel(ctx)
+	if err != nil || len(jenis) != 5 {
+		t.Fatalf("jenis bel = %+v (err %v), mau 5", jenis, err)
+	}
+	if n, _ := st.CountProfil(ctx); n != 1 {
+		t.Errorf("jumlah profil = %d, mau 1", n)
+	}
+	if u, err := st.UrutanBel(ctx, masuk); err != nil || len(u) == 0 {
+		t.Errorf("Masuk tanpa urutan (err %v)", err)
+	}
+}
+
 func TestPasang_FileHilangDitulisUlang(t *testing.T) {
 	ctx := context.Background()
 	dir := t.TempDir()

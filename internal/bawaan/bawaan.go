@@ -29,7 +29,9 @@ var jenisBelAwal = []jenisAwal{
 }
 
 // Pasang menulis file suara bawaan yang belum ada, mendaftarkannya ke database,
-// dan—hanya jika belum ada profil—membuat profil "Normal" serta jenis bel awal.
+// dan—hanya jika belum ada profil—melengkapi jenis bel awal (cari-atau-buat per
+// nama; urutan suara diisi bila masih kosong) lalu membuat profil "Normal".
+// Profil dibuat terakhir, sehingga start yang terputus di tengah aman diulang.
 func Pasang(ctx context.Context, st *store.Store, audioDir string, now time.Time) error {
 	ids := make(map[string]int64)
 	for _, b := range nada.Daftar {
@@ -39,6 +41,8 @@ func Pasang(ctx context.Context, st *store.Store, audioDir string, now time.Time
 			if err := os.WriteFile(path, data, 0o644); err != nil {
 				return fmt.Errorf("tulis %s: %w", b.File, err)
 			}
+		} else if err != nil {
+			return fmt.Errorf("periksa %s: %w", b.File, err)
 		}
 		a, err := st.FindAudio(ctx, "bawaan", b.Nama)
 		switch {
@@ -66,10 +70,29 @@ func Pasang(ctx context.Context, st *store.Store, audioDir string, now time.Time
 		return nil
 	}
 
+	ada, err := st.ListJenisBel(ctx)
+	if err != nil {
+		return err
+	}
+	jenisID := make(map[string]int64, len(ada))
+	for _, j := range ada {
+		jenisID[j.Nama] = j.ID
+	}
 	for _, j := range jenisBelAwal {
-		id, err := st.CreateJenisBel(ctx, j.nama, j.warna)
-		if err != nil {
-			return fmt.Errorf("buat jenis bel %s: %w", j.nama, err)
+		id, ok := jenisID[j.nama]
+		if !ok {
+			id, err = st.CreateJenisBel(ctx, j.nama, j.warna)
+			if err != nil {
+				return fmt.Errorf("buat jenis bel %s: %w", j.nama, err)
+			}
+		} else {
+			urutan, err := st.UrutanBel(ctx, id)
+			if err != nil {
+				return err
+			}
+			if len(urutan) > 0 {
+				continue
+			}
 		}
 		var audioIDs []int64
 		for _, nama := range j.audio {
@@ -79,7 +102,7 @@ func Pasang(ctx context.Context, st *store.Store, audioDir string, now time.Time
 			return fmt.Errorf("atur suara %s: %w", j.nama, err)
 		}
 	}
-	// Profil dibuat terakhir: keberadaan profil menandai data awal sudah lengkap.
+	// Keberadaan profil menandai data awal sudah lengkap.
 	profil, err := st.CreateProfil(ctx, "Normal")
 	if err != nil {
 		return err
