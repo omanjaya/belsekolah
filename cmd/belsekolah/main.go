@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+	_ "time/tzdata" // zona waktu tertanam, agar Debian minimal tanpa tzdata tetap jalan
 
 	"belsekolah/internal/bawaan"
 	"belsekolah/internal/nada"
@@ -23,13 +24,29 @@ var _ scheduler.Sumber = (*store.Store)(nil)
 
 func main() {
 	dataDir := flag.String("data", "/var/lib/belsekolah", "folder data (database dan audio)")
+	tz := flag.String("tz", "Asia/Jakarta", "zona waktu sekolah")
 	flag.Parse()
 
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	if err := aturZonaWaktu(*tz); err != nil {
+		log.Error("aplikasi berhenti", "err", err)
+		os.Exit(1)
+	}
 	if err := jalankan(*dataDir, log); err != nil {
 		log.Error("aplikasi berhenti", "err", err)
 		os.Exit(1)
 	}
+}
+
+// aturZonaWaktu menjadikan zona sekolah sebagai time.Local, sehingga bel berbunyi
+// menurut jam lokal sekolah walau OS memakai UTC.
+func aturZonaWaktu(nama string) error {
+	loc, err := time.LoadLocation(nama)
+	if err != nil {
+		return fmt.Errorf("zona waktu tidak valid %q: %w", nama, err)
+	}
+	time.Local = loc
+	return nil
 }
 
 func jalankan(dataDir string, log *slog.Logger) error {

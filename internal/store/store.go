@@ -7,6 +7,8 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"net/url"
+	"path/filepath"
 
 	_ "modernc.org/sqlite"
 )
@@ -35,8 +37,7 @@ type Store struct {
 
 // Open membuka (atau membuat) database dan menjalankan migrasi skema.
 func Open(path string) (*Store, error) {
-	dsn := "file:" + path + "?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
-	db, err := sql.Open("sqlite", dsn)
+	db, err := sql.Open("sqlite", dsn(path))
 	if err != nil {
 		return nil, err
 	}
@@ -47,6 +48,20 @@ func Open(path string) (*Store, error) {
 		return nil, fmt.Errorf("migrasi skema: %w", err)
 	}
 	return &Store{db: db}, nil
+}
+
+// dsn menyusun DSN SQLite; path di-escape agar karakter seperti ?, #, % dan spasi aman.
+func dsn(path string) string {
+	// Path relatif dijadikan absolut: url.URL salah menafsirkannya sebagai host.
+	if abs, err := filepath.Abs(path); err == nil {
+		path = abs
+	}
+	u := url.URL{
+		Scheme:   "file",
+		Path:     path,
+		RawQuery: "_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)",
+	}
+	return u.String()
 }
 
 func (s *Store) Close() error {

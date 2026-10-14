@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -218,5 +219,85 @@ func TestRiwayat_StatusTidakValidDitolak(t *testing.T) {
 	err := s.InsertRiwayat(ctx, Riwayat{Waktu: time.Now(), Sumber: SumberJadwal, Status: "aneh"})
 	if err == nil {
 		t.Fatal("status tidak valid seharusnya ditolak")
+	}
+}
+
+func TestOpen_PathKarakterKhusus(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data ?#%", "bel.db")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Open(path)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	harus(s.CreateProfil(ctx, "Reguler"))(t)
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err = Open(path)
+	if err != nil {
+		t.Fatalf("Open ulang: %v", err)
+	}
+	defer s.Close()
+	if n := harus(s.CountProfil(ctx))(t); n != 1 {
+		t.Fatalf("jumlah profil = %d, mau 1", n)
+	}
+}
+
+func TestRiwayat_WaktuUTCTanggalLokal(t *testing.T) {
+	s := bukaStore(t)
+	wib := time.FixedZone("WIB", 7*3600)
+	pagi := time.Date(2026, 10, 12, 6, 30, 0, 0, wib) // 2026-10-11 23:30 UTC
+	siang := time.Date(2026, 10, 12, 13, 0, 0, 0, wib)
+	for _, r := range []Riwayat{
+		{Waktu: pagi, JadwalID: 5, Label: "Masuk", Sumber: SumberJadwal, Status: "berhasil"},
+		{Waktu: siang, Label: "Manual", Sumber: SumberManual, Status: "berhasil"},
+	} {
+		if err := s.InsertRiwayat(ctx, r); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := harus(s.JadwalTercatat(ctx, "2026-10-12"))(t); !got[5] {
+		t.Errorf("JadwalTercatat 2026-10-12 = %v, mau memuat 5", got)
+	}
+	if got := harus(s.JadwalTercatat(ctx, "2026-10-11"))(t); len(got) != 0 {
+		t.Errorf("JadwalTercatat 2026-10-11 = %v, mau kosong", got)
+	}
+	var waktu string
+	if err := s.db.QueryRowContext(ctx, `SELECT waktu FROM riwayat_bel WHERE jadwal_id = 5`).Scan(&waktu); err != nil {
+		t.Fatal(err)
+	}
+	if waktu != "2026-10-11T23:30:00Z" {
+		t.Errorf("waktu tersimpan = %q, mau UTC", waktu)
+	}
+	r := harus(s.RiwayatTerbaru(ctx, 10))(t)
+	if len(r) != 2 || !r[0].Waktu.Equal(siang) || !r[1].Waktu.Equal(pagi) {
+		t.Fatalf("urutan/waktu riwayat salah: %+v", r)
+	}
+	if r[0].Waktu.Location() != time.Local {
+		t.Errorf("Waktu harus dalam time.Local, dapat %v", r[0].Waktu.Location())
+	}
+}
+
+func TestOpen_PathRelatif(t *testing.T) {
+	t.Chdir(t.TempDir())
+	if err := os.MkdirAll("data", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Open(filepath.Join("data", "bel.db"))
+	if err != nil {
+		t.Fatalf("Open path relatif: %v", err)
+	}
+	s.Close()
+}
+
+func TestCreatePeriode_TumpangTindih(t *testing.T) {
+	s := bukaStore(t)
+	p := harus(s.CreateProfil(ctx, "Ujian"))(t)
+	harus(s.CreatePeriode(ctx, schedule.Periode{Mulai: "2026-11-01", Selesai: "2026-11-05", ProfilID: p}))(t)
+	_, err := s.CreatePeriode(ctx, schedule.Periode{Mulai: "2026-11-05", Selesai: "2026-11-09", ProfilID: p})
+	if !errors.Is(err, ErrPeriodeTumpangTindih) {
+		t.Fatalf("err = %v, mau ErrPeriodeTumpangTindih", err)
 	}
 }

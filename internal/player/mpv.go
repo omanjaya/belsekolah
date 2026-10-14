@@ -20,7 +20,7 @@ func (m Mpv) Run(ctx context.Context, file string, volume int) error {
 		perintah = "mpv"
 	}
 	cmd := exec.CommandContext(ctx, perintah,
-		"--no-video", "--no-terminal", "--really-quiet",
+		"--no-config", "--no-video", "--no-terminal", "--really-quiet",
 		fmt.Sprintf("--volume=%d", volume),
 		"--", file)
 	cmd.WaitDelay = 2 * time.Second // cegah hang pada pipe yang diwarisi proses anak

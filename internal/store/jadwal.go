@@ -52,8 +52,14 @@ func (s *Store) CreatePeriode(ctx context.Context, p schedule.Periode) (int64, e
 	if err := validasiRentang(p.Mulai, p.Selesai); err != nil {
 		return 0, err
 	}
+	// Cek tumpang tindih dan INSERT dalam satu transaksi agar pemanggil bersamaan tidak lolos bersama.
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
 	var n int
-	if err := s.db.QueryRowContext(ctx,
+	if err := tx.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM periode_khusus WHERE tgl_mulai <= ? AND tgl_selesai >= ?`,
 		p.Selesai, p.Mulai).Scan(&n); err != nil {
 		return 0, err
@@ -61,9 +67,17 @@ func (s *Store) CreatePeriode(ctx context.Context, p schedule.Periode) (int64, e
 	if n > 0 {
 		return 0, ErrPeriodeTumpangTindih
 	}
-	return s.insert(ctx,
+	res, err := tx.ExecContext(ctx,
 		`INSERT INTO periode_khusus (tgl_mulai, tgl_selesai, profil_id, keterangan) VALUES (?, ?, ?, ?)`,
 		p.Mulai, p.Selesai, p.ProfilID, p.Keterangan)
+	if err != nil {
+		return 0, err
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return id, tx.Commit()
 }
 
 func (s *Store) CreateLibur(ctx context.Context, l schedule.Libur) (int64, error) {

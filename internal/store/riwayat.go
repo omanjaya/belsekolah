@@ -33,7 +33,7 @@ func (s *Store) InsertRiwayat(ctx context.Context, r Riwayat) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO riwayat_bel (waktu, tanggal, jadwal_id, jenis_bel_id, label, sumber, status, pesan)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		r.Waktu.Format(time.RFC3339), r.Waktu.Format(schedule.FormatTanggal),
+		r.Waktu.UTC().Format(time.RFC3339), r.Waktu.Format(schedule.FormatTanggal),
 		nullID(r.JadwalID), nullID(r.JenisBelID), r.Label, r.Sumber, r.Status, r.Pesan)
 	return err
 }
@@ -77,6 +77,7 @@ func (s *Store) RiwayatTerbaru(ctx context.Context, batas int) ([]Riwayat, error
 		if r.Waktu, err = time.Parse(time.RFC3339, waktu); err != nil {
 			return nil, fmt.Errorf("waktu riwayat %d tidak valid: %w", r.ID, err)
 		}
+		r.Waktu = r.Waktu.Local()
 		r.JadwalID, r.JenisBelID = jadwalID.Int64, jenisBelID.Int64
 		out = append(out, r)
 	}
