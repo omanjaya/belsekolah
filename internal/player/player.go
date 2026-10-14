@@ -54,7 +54,7 @@ type Player struct {
 	mu      sync.Mutex
 	antrean []Permintaan
 	batal   context.CancelFunc // membatalkan permintaan yang sedang diputar
-	sedang  Prioritas         // prioritas permintaan yang sedang diputar (valid bila batal != nil)
+	sedang  Prioritas          // prioritas permintaan yang sedang diputar (valid bila batal != nil)
 	volume  int
 }
 
