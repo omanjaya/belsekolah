@@ -78,7 +78,7 @@ belsekolah/
 │   ├── schedule/     logika murni: bel apa saja pada tanggal tertentu
 │   ├── scheduler/    loop per detik, memicu bel, mencatat riwayat
 │   ├── player/       antrean & pemutaran via mpv
-│   ├── tts/          teks → MP3 via protokol edge-tts (WebSocket)
+│   ├── tts/          teks → MP3 via CLI edge-tts
 │   ├── auth/         login, sesi, rate-limit
 │   └── api/          REST API JSON + penyajian frontend embed
 ├── web/              frontend Svelte + Tailwind (build di-embed via go:embed)
@@ -91,7 +91,7 @@ belsekolah/
   `BelPadaTanggal(tgl Date, data DataJadwal) []BelTerjadwal` — `DataJadwal` berisi profil default, periode khusus, libur, dan jadwal semua profil. Tidak membaca jam sistem atau database.
 - **`scheduler`**: menerima `Clock` (antarmuka, agar bisa dipalsukan saat tes), `store`, dan `player`. Tiap detik memeriksa apakah ada bel jatuh tempo; memuat ulang data saat ada perubahan dari API (sinyal reload) dan saat tanggal berganti.
 - **`player`**: antarmuka `Play(ctx, urutan []FileAudio, prioritas)` dan `Stop()`. Implementasi asli menjalankan proses `mpv`; implementasi palsu untuk tes.
-- **`tts`**: `Generate(ctx, teks, suara) ([]byte mp3, error)`. Implementasi protokol edge-tts secara native di Go (atau port Go yang sudah ada jika layak — dievaluasi saat perencanaan).
+- **`tts`**: `Buat(ctx, teks, suara) ([]byte mp3, error)` dengan memanggil CLI `edge-tts` (lihat §8).
 - **`store`**: CRUD untuk semua entitas; migrasi skema saat start.
 - **`auth`**: verifikasi password bcrypt, sesi via cookie `HttpOnly`, `SameSite=Strict`.
 - **`api`**: handler HTTP; memanggil `store`, `player`, `tts`; memberi sinyal reload ke `scheduler`.
@@ -150,9 +150,11 @@ Bel manual/darurat tidak terikat aturan ini dan selalu bisa dibunyikan.
 ## 8. TTS
 
 - Layanan: edge-tts (suara Microsoft `id-ID-GadisNeural` dan `id-ID-ArdiNeural`).
-- Alur: admin mengetik teks + memilih suara → preview → simpan sebagai `audio` (`sumber=tts`) berupa file MP3. Saat bel berbunyi tidak ada panggilan internet.
-- Teks TTS bisa diedit lalu dirender ulang (menimpa file yang sama).
-- Tanpa internet → error jelas "Butuh internet untuk membuat suara TTS".
+- Implementasi: aplikasi memanggil program CLI `edge-tts` (paket Python resmi, dipasang via `pipx`), sama seperti `mpv`/`ffprobe`. Alasan: protokol Microsoft memakai token DRM yang berubah-ubah (kini "v2" dengan hash khusus); CLI resmi mengikutinya dan cukup diperbarui dengan `pipx upgrade edge-tts`, tanpa mengubah aplikasi.
+- Alur: admin mengetik teks + memilih suara → pratinjau → simpan sebagai `audio` (`sumber=tts`) berupa file MP3 (`tts-<hex>.mp3`). Saat bel berbunyi tidak ada panggilan internet.
+- Teks 1–1000 karakter. Teks TTS bisa diedit lalu dirender ulang (menimpa file yang sama).
+- Tanpa internet atau CLI belum terpasang → error jelas (HTTP 503) "Gagal membuat suara TTS; pastikan mini PC terhubung ke internet" / "program edge-tts belum terpasang".
+- API: `GET /api/tts/suara`, `POST /api/tts/pratinjau` `{teks, suara}` → `audio/mpeg`, `POST /api/audio/tts` `{nama, teks, suara}` → 201, `PUT /api/audio/{id}/tts` `{teks, suara}` → 200 (hanya untuk audio bersumber `tts`).
 
 ## 9. Antarmuka Pengguna
 
@@ -196,6 +198,42 @@ Svelte + Tailwind, bahasa Indonesia, mobile-first, tombol besar.
 - **`player`**: implementasi palsu — antrean, darurat memotong, nada cadangan, retry.
 - **`store` & `api`**: tes integrasi dengan SQLite in-memory/temporary; validasi input & aturan penghapusan.
 - **`auth`**: rate-limit, sesi, wajib ganti password.
-- **`tts`**: server WebSocket tiruan; satu tes manual opsional ke layanan asli.
+- **`tts`**: program `edge-tts` tiruan (skrip shell); satu tes e2e di container ke layanan asli.
 - **Frontend**: verifikasi manual di browser.
 - **Perangkat**: checklist manual di mini PC — cabut listrik, cabut LAN, ubah jam, bunyi di amplifier, akses dari Android & iPhone.
+
+## 13. Lingkungan Development (Docker)
+
+Docker **hanya** dipakai untuk development dan pengujian; deploy di mini PC tetap binary + systemd (§3).
+
+- `Dockerfile` multi-stage: build Go (dan frontend setelah Rencana 4) → runtime `debian:trixie-slim` berisi `mpv`, `ffmpeg` (untuk `ffprobe`), `ca-certificates`, `tzdata` — paket yang sama dengan mini PC.
+- Audio di container diarahkan ke perangkat ALSA `null` (`/etc/asound.conf`), sehingga `mpv` benar-benar berjalan tanpa speaker.
+- `compose.yaml`: port `8080`, volume data `/var/lib/belsekolah`, `TZ=Asia/Jakarta`, `restart: unless-stopped`.
+- Dipakai untuk tes end-to-end API dan browser terhadap binary yang sama dengan produksi.
+
+## 14. Kontrak API (JSON)
+
+Semua di bawah `/api`, body dan respons JSON (kecuali upload/unduh). Error: `{"error": "<pesan Indonesia>"}` dengan kode 400 (validasi), 401 (belum login), 403 (wajib ganti password), 404, 409 (dipakai/duplikat/tumpang tindih), 429 (login terkunci). Semua perubahan data memicu muat ulang penjadwal.
+
+| Metode & Path | Keterangan |
+|---|---|
+| `POST /login` `{password}` | Set cookie sesi; balas `{wajibGantiPassword}` |
+| `POST /logout`, `GET /sesi` | Sesi saat ini |
+| `POST /password` `{lama, baru}` | Ganti password (min. 8 karakter) |
+| `GET /status` | Jam, profil/libur hari ini, bel hari ini + status, bel berikutnya, peringatan |
+| `POST /bel/manual` `{jenisBelId}`, `POST /bel/darurat` `{jenisBelId}`, `POST /bel/stop` | Bel manual/darurat/hentikan |
+| `GET/POST /profil`, `PUT/DELETE /profil/{id}` | Profil |
+| `GET /jadwal?profil=`, `POST /jadwal`, `PUT/DELETE /jadwal/{id}`, `POST /jadwal/salin` | Jadwal; salin mengganti isi hari tujuan |
+| `GET/POST /periode`, `PUT/DELETE /periode/{id}` | Periode khusus |
+| `GET/POST /libur`, `PUT/DELETE /libur/{id}` | Libur |
+| `GET/POST /jenis-bel`, `PUT/DELETE /jenis-bel/{id}`, `POST /jenis-bel/{id}/tes` | Jenis bel + urutan audio |
+| `GET /audio`, `POST /audio` (multipart), `PUT/DELETE /audio/{id}`, `GET /audio/{id}/file`, `POST /audio/{id}/tes` | Pustaka suara |
+| `GET /riwayat?tanggal=&status=&batas=` | Riwayat |
+| `GET/PUT /pengaturan` `{volume, profilDefaultId}` | Pengaturan |
+| `GET /sistem` | Versi, IP, zona waktu, jam, status NTP |
+| `GET /backup`, `POST /restore` (multipart zip) | Backup/restore; restore memulai ulang aplikasi |
+
+- Password awal dibuat acak saat database baru dan ditulis ke `<data>/password-awal.txt` (mode 0600, dihapus setelah diganti). Log hanya menyebut lokasi file, tidak pernah isi password. Flag `-reset-password` membuat password acak baru lalu keluar.
+- Sesi disimpan di memori (hilang saat aplikasi restart), kedaluwarsa 7 hari sejak terakhir dipakai.
+- Permintaan yang mengubah data wajib `Origin` sama dengan host (atau tanpa `Origin`), sebagai perlindungan CSRF tambahan selain `SameSite=Strict`.
+- Restore: aplikasi keluar dengan kode 3 setelah mengganti data; systemd/Docker memulainya lagi.
