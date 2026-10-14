@@ -1,0 +1,14 @@
+# Lingkungan development: docker compose up --build, lalu buka http://localhost:8080
+services:
+  belsekolah:
+    build: .
+    ports:
+      - "${BEL_PORT:-8080}:8080"
+    volumes:
+      - data:/var/lib/belsekolah
+    environment:
+      TZ: Asia/Jakarta
+    restart: unless-stopped
+
+volumes:
+  data:
