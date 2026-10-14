@@ -5,7 +5,12 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 VERSI="${1:-$(git describe --tags --always --dirty)}"
-(cd web && npm ci && npm run build)
+(cd web && npm ci && env -u VITE_E2E npm run build)
+# Build produksi tidak boleh membawa kait uji (__bel) dari build E2E.
+if grep -rq __bel internal/webui/dist; then
+  echo "GAGAL: internal/webui/dist mengandung __bel (build E2E). Bangun ulang tanpa VITE_E2E." >&2
+  exit 1
+fi
 go vet ./...
 go test ./...
 
@@ -16,7 +21,7 @@ for ARSITEKTUR in amd64 arm64; do
   CGO_ENABLED=0 GOOS=linux GOARCH="$ARSITEKTUR" go build -trimpath \
     -ldflags="-s -w -X main.versi=$VERSI" -o "dist/$NAMA/belsekolah-linux-$ARSITEKTUR" ./cmd/belsekolah
   cp deploy/install.sh deploy/belsekolah.service PANDUAN-INSTAL.md "dist/$NAMA/"
-  tar -C dist -czf "dist/$NAMA.tar.gz" "$NAMA"
+  COPYFILE_DISABLE=1 tar -C dist -czf "dist/$NAMA.tar.gz" "$NAMA"
   rm -rf "dist/$NAMA"
 done
 (cd dist && { sha256sum ./*.tar.gz 2>/dev/null || shasum -a 256 ./*.tar.gz; } > SHA256SUMS)

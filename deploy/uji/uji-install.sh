@@ -21,6 +21,7 @@ cp deploy/uji/Dockerfile "$KERJA/"
 docker build -q -t belsekolah-uji-instal "$KERJA" >/dev/null
 docker run --rm -e BELSEKOLAH_UJI=1 belsekolah-uji-instal bash -euo pipefail -c '
   ./install.sh --tz Asia/Makassar --hostname bel-uji --perangkat-audio "alsa/default"
+  echo "BELSEKOLAH_MPV_AO=null" >> /etc/default/belsekolah   # variabel operator, harus bertahan
   ./install.sh   # dijalankan ulang TANPA opsi: tz, hostname, dan perangkat harus dipertahankan
   test -x /usr/local/bin/belsekolah
   test -x /usr/local/bin/edge-tts
@@ -30,6 +31,8 @@ docker run --rm -e BELSEKOLAH_UJI=1 belsekolah-uji-instal bash -euo pipefail -c 
   test "$(stat -c %U:%a /var/lib/belsekolah)" = "belsekolah:750"
   grep -q "^BELSEKOLAH_TZ=Asia/Makassar$" /etc/default/belsekolah
   grep -q "^BELSEKOLAH_MPV_DEVICE=alsa/default$" /etc/default/belsekolah   # dipertahankan saat diulang
+  grep -q "^BELSEKOLAH_MPV_AO=null$" /etc/default/belsekolah   # variabel operator dipertahankan
+  test "$(grep -c "^BELSEKOLAH_MPV_AO=" /etc/default/belsekolah)" = "1"
   grep -q "Automatic-Reboot \"false\"" /etc/apt/apt.conf.d/51belsekolah-tanpa-reboot
   test -f /etc/systemd/system/belsekolah.service
   test "$(grep -c "^127\.0\.1\.1[[:space:]]" /etc/hosts)" = "1"

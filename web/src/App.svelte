@@ -8,6 +8,7 @@
   import Login from './pages/Login.svelte'
   import GantiPasswordAwal from './pages/GantiPasswordAwal.svelte'
   import { api, aturSaatTidakMasuk, type Sesi } from './lib/api'
+  import { beriTahu } from './lib/notif.svelte'
   import { rute } from './lib/router.svelte'
   import { halamanUntuk } from './rute'
 
@@ -24,7 +25,10 @@
   }
 
   aturSaatTidakMasuk(() => {
+    // Toast hanya sekali per kedaluwarsa: saat sebelumnya masih masuk (bukan muat awal / halaman login).
+    const tadiMasuk = sesi?.masuk === true
     sesi = { masuk: false, wajibGantiPassword: false }
+    if (tadiMasuk) beriTahu('Sesi berakhir, silakan masuk lagi', 'info')
   })
   onMount(muatSesi)
 

@@ -79,9 +79,14 @@ Menjalankan `install.sh` lagi aman. Zona waktu, nama host, dan perangkat audio y
 
 1. Colok kabel audio dari mini PC ke input AUX atau LINE IN amplifier.
 2. Kecilkan volume amplifier lebih dulu.
-3. Buka **Beranda**, lalu tekan **Bunyikan bel**.
+3. Buka **Beranda**. Pada kartu **Bunyikan bel**, pilih **Jenis bel** (misalnya Masuk), lalu tekan **Bunyikan**.
 4. Naikkan volume amplifier pelan-pelan.
 5. Jika tidak ada suara, lihat bagian Pemecahan masalah.
+
+Di kartu yang sama ada dua tombol lain:
+
+- **Bel darurat**: tahan tombol merah **Tahan untuk bel darurat** selama 2 detik sampai terisi penuh. Menekan sebentar tidak akan membunyikan apa pun. Tombol ini memakai jenis bel bernama "Darurat". Jika jenis bel itu terhapus atau diganti namanya, tombol nonaktif dan muncul pesan agar Anda membuatnya lagi di menu **Jenis Bel**.
+- **Hentikan suara**: menghentikan suara yang sedang diputar.
 
 ## 8. Atur jadwal
 
@@ -92,12 +97,19 @@ Isi menu berikut sesuai urutan ini:
 3. **Libur**: isi hari libur.
 4. **Profil & Periode**: atur profil jadwal dan periode berlakunya (semester atau ujian).
 
-Menu lain: **Suara** (Pustaka Suara) untuk suara bel, **Riwayat** untuk catatan bel yang sudah berbunyi, dan **Pengaturan** untuk password dan backup.
+Di HP, menu bawah hanya menampilkan **Beranda**, **Jadwal**, **Suara**, dan **Riwayat**. **Jenis Bel**, **Profil & Periode**, **Libur**, dan **Pengaturan** ada di bawah tombol **Lainnya**. Di laptop, semua menu tampil di sisi kiri.
+
+Di menu **Jadwal**, pilih profil lewat dropdown **Profil**, lalu pilih hari lewat tab Senin sampai Minggu. Tombol **Tambah bel** menambah bel pada hari yang sedang dipilih, dan **Salin dari hari lain** menyalin jadwal antarhari.
+
+Menu lain: **Suara** untuk suara bel (unggah file atau buat dari teks), **Riwayat** untuk catatan bel yang sudah berbunyi, gagal, atau terlewat, dan **Pengaturan** untuk volume, password, info sistem, dan backup.
 
 ## 9. Backup
 
 - Mini PC membuat backup otomatis setiap hari dan menyimpan 7 yang terakhir di `/var/lib/belsekolah/backup`.
-- Backup manual dan pemulihan ada di menu **Pengaturan**.
+- Backup manual dan pemulihan ada di **Pengaturan → Backup & Restore**:
+  - **Unduh backup** menyimpan file `.zip` berisi semua data.
+  - **Pulihkan dari backup**: pilih file `.zip` pada **File backup (.zip)**, lalu tekan **Pulihkan dari backup** dan konfirmasi.
+- Pemulihan mengganti semua data, termasuk password admin: password yang berlaku adalah password saat backup itu dibuat. Semua sesi login berakhir. Aplikasi memulai ulang dan halaman dimuat ulang sendiri (tunggu hingga 2 menit), lalu Anda login lagi dengan password yang berlaku saat backup dibuat. Jika lupa password itu, pakai perintah reset di bagian "Lupa password".
 - Unduh satu backup setiap awal semester dan simpan di luar mini PC (flashdisk atau komputer lain). Jika SSD rusak, backup di dalam mini PC ikut hilang.
 
 ## 10. Pembaruan aplikasi
@@ -116,6 +128,10 @@ Menu lain: **Suara** (Pustaka Suara) untuk suara bel, **Riwayat** untuk catatan 
    Pilihan ini disimpan di `/etc/default/belsekolah` sebagai `BELSEKOLAH_MPV_DEVICE`.
 4. Jalankan `alsamixer`. Pastikan kanal tidak mute (tanda MM). Tekan `M` untuk membuka mute, panah atas untuk menaikkan volume.
 5. Periksa kabel dan input amplifier.
+
+### Alat belum terpasang
+
+Buka **Pengaturan → Info sistem**. Di sana ada status **Pemutar audio (mpv)**, **Pembaca audio (ffprobe)**, dan **Suara TTS (edge-tts)**, masing-masing **Terpasang** (hijau) atau **Belum terpasang** (merah). Jika ada yang merah, jalankan `sudo ./install.sh` lagi dengan mini PC tersambung ke internet. Info sistem juga menampilkan **Ruang disk kosong** dan **Backup harian terakhir**; jika ruang disk hampir habis atau backup harian tidak pernah bertambah, periksa SSD mini PC.
 
 ### Jam salah
 

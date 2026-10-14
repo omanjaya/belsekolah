@@ -95,6 +95,10 @@ install -m 0644 "$DIR/belsekolah.service" /etc/systemd/system/belsekolah.service
   elif [[ -f /etc/default/belsekolah ]]; then
     grep '^BELSEKOLAH_MPV_DEVICE=' /etc/default/belsekolah || true
   fi
+  # Variabel lain yang ditambahkan operator (mis. BELSEKOLAH_MPV_AO) dipertahankan.
+  if [[ -f /etc/default/belsekolah ]]; then
+    grep -E '^BELSEKOLAH_[A-Z0-9_]+=' /etc/default/belsekolah | grep -vE '^BELSEKOLAH_(TZ|MPV_DEVICE)=' || true
+  fi
 } > /etc/default/belsekolah.baru
 mv /etc/default/belsekolah.baru /etc/default/belsekolah
 

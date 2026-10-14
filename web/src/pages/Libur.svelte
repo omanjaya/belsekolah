@@ -9,6 +9,7 @@
   import Kartu from '../components/Kartu.svelte'
   import Kosong from '../components/Kosong.svelte'
   import Memuat from '../components/Memuat.svelte'
+  import GalatMuat from '../components/GalatMuat.svelte'
   import Modal from '../components/Modal.svelte'
   import Medan from '../components/Medan.svelte'
   import Tombol from '../components/Tombol.svelte'
@@ -24,6 +25,7 @@
 
   async function muat() {
     galatMuat = ''
+    memuat = true
     try {
       const [l, st] = await Promise.all([api.get<Libur[]>('/libur'), api.get<Status>('/status')])
       daftar = l
@@ -112,10 +114,7 @@
 {#if memuat}
   <Memuat />
 {:else if galatMuat}
-  <Kartu>
-    <p class="mb-3 text-red-700" role="alert">{galatMuat}</p>
-    <Tombol onclick={muat}>Coba lagi</Tombol>
-  </Kartu>
+  <GalatMuat pesan={galatMuat} oncoba={muat} />
 {:else}
   <div class="flex flex-col gap-5">
     <Kartu>
@@ -164,7 +163,7 @@
     {/if}
   </form>
   {#snippet aksi()}
-    <Tombol varian="hantu" onclick={() => (buka = false)}>Batal</Tombol>
+    <Tombol varian="kedua" onclick={() => (buka = false)}>Batal</Tombol>
     <Tombol type="submit" form="form-libur" {sibuk}>Simpan</Tombol>
   {/snippet}
 </Modal>

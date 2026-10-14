@@ -4,10 +4,10 @@
   import Tombol from '../components/Tombol.svelte'
   import Medan from '../components/Medan.svelte'
   import Memuat from '../components/Memuat.svelte'
+  import GalatMuat from '../components/GalatMuat.svelte'
   import Kosong from '../components/Kosong.svelte'
   import { api, type Riwayat, type Status } from '../lib/api'
-  import { galat } from '../lib/notif.svelte'
-  import { tanggalHariIni } from '../lib/format'
+    import { tanggalHariIni } from '../lib/format'
 
   const input = 'min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20'
   const STATUS: Record<Riwayat['status'], { teks: string; kelas: string }> = {
@@ -23,6 +23,7 @@
   let status = $state('')
   let daftar = $state<Riwayat[]>([])
   let memuat = $state(true)
+  let galatMuat = $state('')
   let siap = $state(false)
   let tanggalLokal = $state(false)
   let urut = 0
@@ -30,6 +31,7 @@
   async function muat() {
     const saya = ++urut
     memuat = true
+    galatMuat = ''
     try {
       const q = new URLSearchParams({ batas: '200' })
       if (tanggal) q.set('tanggal', tanggal)
@@ -37,7 +39,7 @@
       const hasil = await api.get<Riwayat[]>('/riwayat?' + q)
       if (saya === urut) daftar = hasil
     } catch (e) {
-      if (saya === urut) galat(e)
+      if (saya === urut) galatMuat = e instanceof Error ? e.message : String(e)
     } finally {
       if (saya === urut) memuat = false
     }
@@ -57,6 +59,7 @@
     if (!siap) return
     void tanggal
     void status
+    daftar = []
     muat()
   })
 </script>
@@ -86,8 +89,10 @@
   </Medan>
 </div>
 
-{#if memuat && daftar.length === 0}
+{#if memuat}
   <Memuat />
+{:else if galatMuat}
+  <GalatMuat pesan={galatMuat} oncoba={muat} />
 {:else if daftar.length === 0}
   <Kosong pesan="Tidak ada riwayat untuk filter ini" />
 {:else}

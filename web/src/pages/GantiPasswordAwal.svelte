@@ -51,7 +51,7 @@
       <input id="ulangi" type="password" autocomplete="new-password" required aria-invalid={galatUlang ? true : undefined} aria-describedby={galatUlang ? 'ulangi-galat' : undefined} bind:value={ulangi}
         class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20" />
     </Medan>
-    {#if pesanGalat}<p class="text-sm text-red-600" role="alert">{pesanGalat}</p>{/if}
+    {#if pesanGalat}<p class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{pesanGalat}</p>{/if}
     <Tombol type="submit" {sibuk}>Simpan password</Tombol>
   </form>
 </main>

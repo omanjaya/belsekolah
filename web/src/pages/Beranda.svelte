@@ -7,6 +7,7 @@
   import Kartu from '../components/Kartu.svelte'
   import Kosong from '../components/Kosong.svelte'
   import Memuat from '../components/Memuat.svelte'
+  import GalatMuat from '../components/GalatMuat.svelte'
   import Tombol from '../components/Tombol.svelte'
 
   const DURASI_TAHAN = 2000
@@ -29,7 +30,7 @@
 
   const offset = $derived(status ? offsetDariISO(status.sekarang) : 0)
   const jenisManual = $derived(jenisBel.filter((j) => j.nama !== 'Darurat'))
-  const jenisDarurat = $derived(jenisBel.find((j) => j.nama === 'Darurat') ?? jenisBel[0])
+  const jenisDarurat = $derived(jenisBel.find((j) => j.nama === 'Darurat'))
 
   let urutMuat = 0
   let gagalBerturut = $state(0)
@@ -165,10 +166,7 @@
 
 {#if !status}
   {#if galatMuat}
-    <Kartu>
-      <p class="text-red-600" role="alert">{galatMuat}</p>
-      <Tombol class="mt-3" onclick={muat}>Coba lagi</Tombol>
-    </Kartu>
+    <GalatMuat pesan={galatMuat} oncoba={muat} />
   {:else}
     <Memuat />
   {/if}
@@ -243,6 +241,9 @@
             <span class="absolute inset-y-0 left-0 bg-red-900/60" style="width: {progres * 100}%" aria-hidden="true"></span>
             <span class="relative">{menahan ? 'Terus tahan…' : 'Tahan untuk bel darurat'}</span>
           </button>
+          {#if jenisBel.length > 0 && !jenisDarurat}
+            <p class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="status">Jenis bel "Darurat" tidak ada. Buat di menu Jenis Bel.</p>
+          {/if}
 
           <Tombol varian="kedua" class="w-full" sibuk={sibukStop} onclick={hentikan}>Hentikan suara</Tombol>
         </div>

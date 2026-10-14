@@ -80,7 +80,7 @@ test('toast tampil di atas dialog modal', async ({ page }) => {
   const toast = page.getByText('Halo dari toast')
   await expect(toast).toBeVisible()
   // Dialog modal membuat sisa halaman inert (elementFromPoint menembus toast), jadi urutan
-  // tumpukan diperiksa lewat warna piksel: toast berwarna emerald-600 penuh (0,153,102),
+  // tumpukan diperiksa lewat warna piksel: toast berwarna emerald-700 penuh (0,122,85),
   // bukan gelap tertutup backdrop.
   const r = (await toast.evaluate((el) => {
     const k = el.parentElement!.getBoundingClientRect()
@@ -90,7 +90,7 @@ test('toast tampil di atas dialog modal', async ({ page }) => {
   const dataPng = Buffer.concat(idat(png))
   const mentah = inflateSync(dataPng)
   const [merah, hijau, biru] = [mentah[1], mentah[2], mentah[3]]
-  expect({ merah, hijau, biru }).toEqual({ merah: 0, hijau: 153, biru: 102 })
+  expect({ merah, hijau, biru }).toEqual({ merah: 0, hijau: 122, biru: 85 })
   // tombol tutup toast & X modal berukuran minimal 44px
   const kotak = await page.getByRole('button', { name: 'Tutup notifikasi' }).boundingBox()
   expect(kotak!.width).toBeGreaterThanOrEqual(44)

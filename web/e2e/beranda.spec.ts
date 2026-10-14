@@ -59,3 +59,17 @@ test('banner libur', async ({ page, request }) => {
     await request.delete(`/api/libur/${libur.id}`)
   }
 })
+
+test('tombol darurat nonaktif bila jenis bel Darurat tidak ada', async ({ page, request }) => {
+  const daftar = (await (await request.get('/api/jenis-bel')).json()) as { id: number; nama: string; warna: string; audioIds: number[] }[]
+  const d = daftar.find((x) => x.nama === 'Darurat')!
+  const ubah = (nama: string) => request.put(`/api/jenis-bel/${d.id}`, { data: { nama, warna: d.warna, audioIds: d.audioIds } })
+  expect((await ubah('Darurat Sementara')).ok()).toBe(true)
+  try {
+    await page.goto('/')
+    await expect(page.getByRole('button', { name: 'Tahan 2 detik untuk bel darurat' })).toBeDisabled()
+    await expect(page.getByText('Jenis bel "Darurat" tidak ada. Buat di menu Jenis Bel.')).toBeVisible()
+  } finally {
+    expect((await ubah('Darurat')).ok()).toBe(true)
+  }
+})

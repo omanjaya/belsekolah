@@ -9,6 +9,7 @@
   import Kartu from '../components/Kartu.svelte'
   import Kosong from '../components/Kosong.svelte'
   import Memuat from '../components/Memuat.svelte'
+  import GalatMuat from '../components/GalatMuat.svelte'
   import Modal from '../components/Modal.svelte'
   import Medan from '../components/Medan.svelte'
   import Tombol from '../components/Tombol.svelte'
@@ -26,6 +27,7 @@
 
   async function muat() {
     galatMuat = ''
+    memuat = true
     try {
       const [p, per, pg, st] = await Promise.all([
         api.get<Profil[]>('/profil'),
@@ -176,10 +178,7 @@
 {#if memuat}
   <Memuat />
 {:else if galatMuat}
-  <Kartu>
-    <p class="mb-3 text-red-700" role="alert">{galatMuat}</p>
-    <Tombol onclick={muat}>Coba lagi</Tombol>
-  </Kartu>
+  <GalatMuat pesan={galatMuat} oncoba={muat} />
 {:else}
   <div class="grid gap-5 lg:grid-cols-2 lg:items-start">
     <Kartu>
@@ -265,7 +264,7 @@
     {/if}
   </form>
   {#snippet aksi()}
-    <Tombol varian="hantu" onclick={() => (bukaNama = false)}>Batal</Tombol>
+    <Tombol varian="kedua" onclick={() => (bukaNama = false)}>Batal</Tombol>
     <Tombol type="submit" form="form-nama" sibuk={sibukNama}>Simpan</Tombol>
   {/snippet}
 </Modal>
@@ -291,7 +290,7 @@
     {/if}
   </form>
   {#snippet aksi()}
-    <Tombol varian="hantu" onclick={() => (bukaPeriode = false)}>Batal</Tombol>
+    <Tombol varian="kedua" onclick={() => (bukaPeriode = false)}>Batal</Tombol>
     <Tombol type="submit" form="form-periode" sibuk={sibukPeriode}>Simpan</Tombol>
   {/snippet}
 </Modal>

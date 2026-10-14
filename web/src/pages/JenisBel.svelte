@@ -4,10 +4,11 @@
   import JudulHalaman from '../components/JudulHalaman.svelte'
   import Kosong from '../components/Kosong.svelte'
   import Memuat from '../components/Memuat.svelte'
+  import GalatMuat from '../components/GalatMuat.svelte'
   import Modal from '../components/Modal.svelte'
   import Medan from '../components/Medan.svelte'
   import Tombol from '../components/Tombol.svelte'
-  import { api, ApiError, type Audio, type JenisBel } from '../lib/api'
+  import { api, type Audio, type JenisBel } from '../lib/api'
   import { formatDurasi } from '../lib/format'
   import { konfirmasi } from '../lib/konfirmasi.svelte'
   import { beriTahu, galat } from '../lib/notif.svelte'
@@ -49,6 +50,8 @@
   const namaAudio = (id: number) => audioPer.get(id)?.nama ?? `Suara #${id}`
 
   async function muat() {
+    galatMuat = ''
+    memuat = true
     try {
       const [j, a] = await Promise.all([api.get<JenisBel[]>('/jenis-bel'), api.get<Audio[]>('/audio')])
       daftar = j
@@ -134,8 +137,7 @@
       beriTahu('Jenis bel dihapus')
       await muat()
     } catch (e) {
-      if (e instanceof ApiError && e.status === 409) beriTahu('jenis bel masih dipakai di jadwal', 'galat')
-      else galat(e)
+      galat(e)
     }
   }
 </script>
@@ -149,7 +151,7 @@
 {#if memuat}
   <Memuat />
 {:else if galatMuat}
-  <p role="alert" class="rounded-xl bg-red-50 px-4 py-3 text-red-700">{galatMuat}</p>
+  <GalatMuat pesan={galatMuat} oncoba={muat} />
 {:else if daftar.length === 0}
   <Kosong pesan="Belum ada jenis bel. Tambahkan yang pertama." />
 {:else}
@@ -170,7 +172,7 @@
             <Tombol varian="kedua" onclick={() => bukaForm(j)} aria-label="Ubah {j.nama}">
               <Pencil class="size-4" /> Ubah
             </Tombol>
-            <Tombol varian="hantu" onclick={() => hapus(j)} aria-label="Hapus {j.nama}">
+            <Tombol varian="bahaya-teks" onclick={() => hapus(j)} aria-label="Hapus {j.nama}">
               <Trash2 class="size-4" /> Hapus
             </Tombol>
           </div>
@@ -223,7 +225,7 @@
           {/each}
         </ol>
       {/if}
-      {#if galatSuara}<p class="text-sm text-red-600" role="alert">{galatSuara}</p>{/if}
+      {#if galatSuara}<p class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{galatSuara}</p>{/if}
       <Medan label="Tambah suara" untuk="jb-tambah">
         <select id="jb-tambah" class={kelasInput} onchange={tambahSuara}>
           <option value="">Pilih suara…</option>

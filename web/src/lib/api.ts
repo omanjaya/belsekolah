@@ -49,7 +49,7 @@ export const api = {
   hapus: (path: string) => minta<void>('DELETE', path),
 }
 
-export interface Sesi { masuk: boolean; wajibGantiPassword: boolean }
+export interface Sesi { masuk: boolean; wajibGantiPassword: boolean; boot?: string }
 export interface Profil { id: number; nama: string }
 export interface JenisBel { id: number; nama: string; warna: string; audioIds: number[] }
 export interface Audio {
@@ -73,5 +73,11 @@ export interface Status {
   bel: BelHariIni[]; berikutnya: BelHariIni | null; peringatan: string[]
 }
 export interface Pengaturan { volume: number; profilDefaultId: number }
-export interface Sistem { versi: string; zonaWaktu: string; sekarang: string; ip: string[]; ntp: boolean | null }
+export interface Sistem {
+  versi: string; zonaWaktu: string; sekarang: string; ip: string[]; ntp: boolean | null
+  boot?: string
+  alat?: { mpv: boolean; ffprobe: boolean; edgeTts: boolean }
+  ruangKosongMb?: number
+  backupTerakhir?: string
+}
 export interface SuaraTTS { id: string; nama: string }

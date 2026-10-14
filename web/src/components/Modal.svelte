@@ -14,7 +14,11 @@
 
   $effect(() => {
     if (!dialog) return
-    if (buka && !dialog.open) dialog.showModal()
+    if (buka && !dialog.open) {
+      dialog.showModal()
+      // Fokus ke isian pertama bila ada; selain itu biarkan bawaan dialog.
+      dialog.querySelector<HTMLElement>('input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled])')?.focus()
+    }
     else if (!buka && dialog.open) dialog.close()
   })
 </script>

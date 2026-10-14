@@ -12,6 +12,7 @@
   import Kartu from '../components/Kartu.svelte'
   import Kosong from '../components/Kosong.svelte'
   import Memuat from '../components/Memuat.svelte'
+  import GalatMuat from '../components/GalatMuat.svelte'
 
   const masukan =
     'min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20'
@@ -55,7 +56,9 @@
     }
   }
 
-  onMount(async () => {
+  async function muatAwal() {
+    galatMuat = ''
+    memuat = true
     try {
       const stP = api.get<Status>('/status').catch(() => null)
       const [p, j, s, st] = await Promise.all([
@@ -75,7 +78,8 @@
     } finally {
       memuat = false
     }
-  })
+  }
+  onMount(muatAwal)
 
   // Modal tambah/ubah
   let bukaForm = $state(false)
@@ -175,7 +179,7 @@
 {#if memuat}
   <Memuat />
 {:else if galatMuat}
-  <p class="rounded-xl bg-red-50 px-4 py-3 text-red-700" role="alert">{galatMuat}</p>
+  <GalatMuat pesan={galatMuat} oncoba={muatAwal} />
 {:else}
   <div class="mb-4 max-w-sm">
     <Medan label="Profil" untuk="jadwal-profil">
@@ -213,10 +217,7 @@
       {#if memuatDaftar}
         <Memuat />
       {:else if galatDaftar}
-        <div class="flex flex-col items-center gap-3 py-6">
-          <p class="text-slate-600">Daftar bel gagal dimuat.</p>
-          <Tombol varian="kedua" onclick={() => muatJadwal(true)}>Coba lagi</Tombol>
-        </div>
+        <GalatMuat pesan="Daftar bel gagal dimuat." oncoba={() => muatJadwal(true)} />
       {:else if hariIni.length === 0}
         <Kosong pesan="Belum ada bel pada hari {NAMA_HARI[hari]}" />
       {:else}
