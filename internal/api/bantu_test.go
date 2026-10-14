@@ -23,6 +23,7 @@ import (
 
 	"belsekolah/internal/auth"
 	"belsekolah/internal/bawaan"
+	"belsekolah/internal/nada"
 	"belsekolah/internal/player"
 	"belsekolah/internal/scheduler"
 	"belsekolah/internal/store"
@@ -107,6 +108,7 @@ type lingkungan struct {
 	password   string
 	now        time.Time
 	ntp        *bool
+	tts        *fakeTTS
 	mulaiUlang atomic.Int32
 }
 
@@ -127,7 +129,7 @@ func durasiPalsu(_ context.Context, path string) (int64, error) {
 func siapkan(t *testing.T) *lingkungan {
 	t.Helper()
 	auth.BiayaHash = bcrypt.MinCost
-	l := &lingkungan{penjadwal: &fakePenjadwal{}, pemutar: &fakePemutar{}}
+	l := &lingkungan{penjadwal: &fakePenjadwal{}, pemutar: &fakePemutar{}, tts: &fakeTTS{}}
 	l.now = time.Date(2026, 10, 12, 8, 0, 0, 0, time.Local) // Senin
 	l.dataDir = t.TempDir()
 	l.audioDir = filepath.Join(l.dataDir, "audio")
@@ -160,6 +162,7 @@ func siapkan(t *testing.T) *lingkungan {
 		CekNTP:      func() *bool { return l.ntp },
 		DurasiAudio: durasiPalsu,
 		MulaiUlang:  func() { l.mulaiUlang.Add(1) },
+		TTS:         l.tts,
 	})
 	l.srv = httptest.NewServer(h)
 	t.Cleanup(l.srv.Close)
@@ -260,4 +263,24 @@ func tungguSampai(t *testing.T, kondisi func() bool) {
 		time.Sleep(20 * time.Millisecond)
 	}
 	t.Fatal("kondisi tidak terpenuhi dalam 3 detik")
+}
+
+type fakeTTS struct {
+	mu        sync.Mutex
+	err       error
+	hasil     []byte
+	panggilan []string // "suara|teks"
+}
+
+func (f *fakeTTS) Buat(_ context.Context, teks, suara string) ([]byte, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.panggilan = append(f.panggilan, suara+"|"+teks)
+	if f.err != nil {
+		return nil, f.err
+	}
+	if f.hasil != nil {
+		return f.hasil, nil
+	}
+	return nada.DingDong(), nil // berawalan RIFF sehingga durasiPalsu menganggapnya audio
 }

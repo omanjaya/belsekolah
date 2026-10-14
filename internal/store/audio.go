@@ -213,3 +213,10 @@ func (s *Store) SetUrutanBel(ctx context.Context, jenisBelID int64, audioIDs []i
 	}
 	return tx.Commit()
 }
+
+// UpdateAudioTTS menyimpan teks, suara, dan durasi baru untuk audio bersumber TTS.
+func (s *Store) UpdateAudioTTS(ctx context.Context, id int64, teks, suara string, durasiMS int64) error {
+	return cekDiubah(s.db.ExecContext(ctx,
+		`UPDATE audio SET teks_tts = ?, suara_tts = ?, durasi_ms = ? WHERE id = ? AND sumber = 'tts'`,
+		teks, suara, durasiMS, id))
+}

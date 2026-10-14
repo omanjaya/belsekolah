@@ -44,6 +44,7 @@ type Deps struct {
 	CekNTP      func() *bool                                          // nil = tidak diketahui
 	DurasiAudio func(ctx context.Context, path string) (int64, error) // durasi ms; error jika bukan audio
 	MulaiUlang  func()                                                // dipanggil setelah restore disiapkan
+	TTS         PembuatTTS                                            // nil = TTS tidak tersedia
 }
 
 type server struct {
@@ -156,4 +157,9 @@ func (s *server) ui() http.Handler {
 		}
 		berkas.ServeHTTP(w, r)
 	})
+}
+
+// PembuatTTS mengubah teks menjadi MP3 (diimplementasikan tts.EdgeTTS).
+type PembuatTTS interface {
+	Buat(ctx context.Context, teks, suara string) ([]byte, error)
 }

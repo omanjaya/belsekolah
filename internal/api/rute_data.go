@@ -41,4 +41,8 @@ func (s *server) daftarRuteData(rute func(pola string, h http.HandlerFunc)) {
 	rute("GET /api/riwayat", s.listRiwayat)
 	rute("GET /api/backup", s.unduhBackup)
 	rute("POST /api/restore", s.pulihkan)
+	rute("GET /api/tts/suara", s.listSuaraTTS)
+	rute("POST /api/tts/pratinjau", s.pratinjauTTS)
+	rute("POST /api/audio/tts", s.buatAudioTTS)
+	rute("PUT /api/audio/{id}/tts", s.ubahAudioTTS)
 }
