@@ -87,3 +87,13 @@ test('TTS tanpa edge-tts menampilkan galat yang jelas', async ({ page }) => {
   await page.getByRole('button', { name: 'Dengarkan pratinjau' }).click()
   await expect(page.getByText(/edge-tts belum terpasang|terhubung ke internet/)).toBeVisible()
 })
+
+test('jenis bel: nama kembar menampilkan galat di dalam dialog', async ({ page }) => {
+  await page.goto('/jenis-bel')
+  await page.getByRole('button', { name: 'Tambah jenis bel' }).click()
+  const modal = page.getByRole('dialog')
+  await modal.getByLabel('Nama').fill('Masuk')
+  await modal.getByLabel('Tambah suara').selectOption({ label: 'Ding Dong' })
+  await modal.getByRole('button', { name: 'Simpan' }).click()
+  await expect(modal.getByRole('alert').filter({ hasText: 'sudah ada' })).toBeVisible()
+})

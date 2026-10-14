@@ -36,7 +36,10 @@
   let idUbah = $state<number | null>(null)
   let nama = $state('')
   let warna = $state(WARNA[0].nilai)
-  let urutan = $state<number[]>([])
+  let urutan = $state<{ uid: number; id: number }[]>([])
+  let uidTerakhir = 0
+  const butir = (id: number) => ({ uid: ++uidTerakhir, id })
+  let galatForm = $state('')
   let galatNama = $state('')
   let galatSuara = $state('')
   let menyimpan = $state(false)
@@ -67,7 +70,8 @@
     idUbah = j?.id ?? null
     nama = j?.nama ?? ''
     warna = j?.warna ?? WARNA[0].nilai
-    urutan = j ? [...j.audioIds] : []
+    urutan = j ? j.audioIds.map(butir) : []
+    galatForm = ''
     galatNama = ''
     galatSuara = ''
     formBuka = true
@@ -84,7 +88,7 @@
   function tambahSuara(e: Event) {
     const sel = e.currentTarget as HTMLSelectElement
     if (sel.value) {
-      urutan = [...urutan, Number(sel.value)]
+      urutan = [...urutan, butir(Number(sel.value))]
       galatSuara = ''
     }
     sel.value = ''
@@ -95,16 +99,17 @@
     galatNama = nama.trim() ? '' : 'Nama wajib diisi'
     galatSuara = urutan.length ? '' : 'Pilih minimal satu suara'
     if (galatNama || galatSuara) return
+    galatForm = ''
     menyimpan = true
     try {
-      const badan = { nama: nama.trim(), warna, audioIds: urutan }
+      const badan = { nama: nama.trim(), warna, audioIds: urutan.map((u) => u.id) }
       if (idUbah === null) await api.post('/jenis-bel', badan)
       else await api.put(`/jenis-bel/${idUbah}`, badan)
       beriTahu(idUbah === null ? 'Jenis bel ditambahkan' : 'Jenis bel disimpan')
       formBuka = false
       await muat()
     } catch (err) {
-      galat(err)
+      galatForm = err instanceof Error ? err.message : String(err)
     } finally {
       menyimpan = false
     }
@@ -208,7 +213,7 @@
         <p class="text-sm text-slate-500">Belum ada suara.</p>
       {:else}
         <ol class="flex flex-col gap-1">
-          {#each urutan as id, i (i)}
+          {#each urutan as { uid, id }, i (uid)}
             <li class="flex items-center gap-1 rounded-xl bg-slate-50 pl-3 ring-1 ring-slate-200">
               <span class="min-w-0 flex-1 break-words text-sm">{i + 1}. {namaAudio(id)}</span>
               <button type="button" class={kelasIkon} disabled={i === 0} onclick={() => geser(i, -1)} aria-label="Naikkan {namaAudio(id)}"><ArrowUp class="size-5" /></button>
@@ -226,6 +231,7 @@
         </select>
       </Medan>
     </div>
+    {#if galatForm}<p class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{galatForm}</p>{/if}
   </form>
   {#snippet aksi()}
     <Tombol varian="kedua" onclick={() => (formBuka = false)}>Batal</Tombol>

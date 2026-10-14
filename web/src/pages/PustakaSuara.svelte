@@ -32,6 +32,7 @@
 
   let daftar = $state<Audio[]>([])
   let suara = $state<SuaraTTS[]>([])
+  let galatSuara = $state('')
   let memuat = $state(true)
   let galatMuat = $state('')
   let tab = $state<(typeof TAB)[number]['kunci']>('semua')
@@ -52,9 +53,9 @@
     api.get<SuaraTTS[]>('/tts/suara').then(
       (s) => {
         suara = s
-        if (!suaraTts && s.length) suaraTts = s[0].id
+        if (!suaraTts && s.length) suaraTts = (s.find((v) => v.id === 'id-ID-GadisNeural') ?? s[0]).id
       },
-      galat,
+      () => (galatSuara = 'Daftar suara TTS gagal dimuat'),
     )
   })
 
@@ -73,7 +74,8 @@
     memutar = kunci
     try {
       await pemutar.play()
-    } catch {
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return
       if (memutar === kunci) memutar = null
       beriTahu('Browser tidak bisa memutar suara ini', 'galat')
     }
@@ -117,11 +119,19 @@
   let berkas = $state<File | null>(null)
   let namaUnggah = $state('')
   let mengunggah = $state(false)
+  let galatBerkas = $state('')
   let masukanBerkas = $state<HTMLInputElement>()
   async function unggah(e: SubmitEvent) {
     e.preventDefault()
-    if (!berkas) return beriTahu('Pilih file audio dulu', 'galat')
-    if (berkas.size > MAKS_BYTE) return beriTahu('File terlalu besar (maksimal 20 MB)', 'galat')
+    if (!berkas) {
+      galatBerkas = 'Pilih file audio terlebih dahulu'
+      return
+    }
+    if (berkas.size > MAKS_BYTE) {
+      galatBerkas = 'File terlalu besar (maksimal 20 MB)'
+      return
+    }
+    galatBerkas = ''
     mengunggah = true
     try {
       const f = new FormData()
@@ -146,10 +156,12 @@
   let gnNama = $state('')
   let gnGalat = $state('')
   let gnSimpan = $state(false)
+  let gnGalatForm = $state('')
   function bukaGantiNama(a: Audio) {
     gnAudio = a
     gnNama = a.nama
     gnGalat = ''
+    gnGalatForm = ''
     gnBuka = true
   }
   async function simpanNama(e: SubmitEvent) {
@@ -160,13 +172,14 @@
       return
     }
     gnSimpan = true
+    gnGalatForm = ''
     try {
       await api.put(`/audio/${gnAudio.id}`, { nama: gnNama.trim() })
       beriTahu('Nama suara disimpan')
       gnBuka = false
       await muat()
     } catch (err) {
-      galat(err)
+      gnGalatForm = err instanceof Error ? err.message : String(err)
     } finally {
       gnSimpan = false
     }
@@ -179,11 +192,13 @@
   let utSuara = $state('')
   let utGalat = $state('')
   let utSimpan = $state(false)
+  let utGalatForm = $state('')
   function bukaUbahTeks(a: Audio) {
     utAudio = a
     utTeks = a.teksTts ?? ''
     utSuara = a.suaraTts ?? suara[0]?.id ?? ''
     utGalat = ''
+    utGalatForm = ''
     utBuka = true
   }
   async function simpanTeks(e: SubmitEvent) {
@@ -194,13 +209,14 @@
       return
     }
     utSimpan = true
+    utGalatForm = ''
     try {
       await api.put(`/audio/${utAudio.id}/tts`, { teks: utTeks.trim(), suara: utSuara })
       beriTahu('Teks suara disimpan')
       utBuka = false
       await muat()
     } catch (err) {
-      galat(err)
+      utGalatForm = err instanceof Error ? err.message : String(err)
     } finally {
       utSimpan = false
     }
@@ -250,7 +266,7 @@
 
 <JudulHalaman judul="Pustaka Suara" keterangan="Suara yang bisa dipakai di jenis bel: bawaan, unggahan, dan hasil teks ke suara." />
 
-<audio bind:this={pemutar} onended={() => (memutar = null)} onerror={() => (memutar = null)} class="hidden"></audio>
+<audio bind:this={pemutar} onended={() => (memutar = null)} onerror={() => (memutar = null)} onpause={() => (memutar = null)} class="hidden"></audio>
 
 <div class="grid gap-4 lg:grid-cols-[1fr_22rem] lg:items-start">
   <div class="min-w-0">
@@ -310,13 +326,18 @@
     <Kartu>
       <h2 class="mb-3 text-lg font-semibold">Unggah suara</h2>
       <form onsubmit={unggah} class="flex flex-col gap-3">
-        <Medan label="File audio" untuk="up-file" bantuan="Format MP3 atau WAV, maksimal 20 MB.">
+        <Medan label="File audio" untuk="up-file" galat={galatBerkas} bantuan="Format MP3 atau WAV, maksimal 20 MB.">
           <input
             id="up-file"
             type="file"
             accept=".mp3,.wav,audio/mpeg,audio/wav"
             bind:this={masukanBerkas}
-            onchange={(e) => (berkas = e.currentTarget.files?.[0] ?? null)}
+            onchange={(e) => {
+              berkas = e.currentTarget.files?.[0] ?? null
+              galatBerkas = ''
+            }}
+            aria-invalid={!!galatBerkas}
+            aria-describedby={galatBerkas ? 'up-file-galat' : undefined}
             class="{kelasInput} file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5"
           />
         </Medan>
@@ -344,6 +365,7 @@
         </Medan>
         <fieldset class="flex flex-col gap-1">
           <legend class="mb-1 text-sm font-medium text-slate-800">Suara</legend>
+          {#if galatSuara}<p class="text-sm text-red-600" role="alert">{galatSuara}</p>{/if}
           {#each suara as s (s.id)}
             <label class="flex min-h-11 items-center gap-3 rounded-xl px-2 hover:bg-slate-50">
               <input type="radio" name="suara-tts" value={s.id} bind:group={suaraTts} class="size-5" />
@@ -355,10 +377,10 @@
           <input id="tts-nama" class={kelasInput} bind:value={namaTts} autocomplete="off" />
         </Medan>
         <div class="flex flex-wrap gap-2">
-          <Tombol varian="kedua" sibuk={praBusy} disabled={simpanBusy} onclick={pratinjau}>
-            {#if memutar === 'pratinjau'}<Square class="size-4" />{:else}<Play class="size-4" />{/if} Dengarkan pratinjau
+          <Tombol varian="kedua" sibuk={praBusy} disabled={simpanBusy || !!galatSuara} onclick={() => (memutar === 'pratinjau' ? berhenti() : pratinjau())}>
+            {#if memutar === 'pratinjau'}<Square class="size-4" /> Hentikan pratinjau{:else}<Play class="size-4" /> Dengarkan pratinjau{/if}
           </Tombol>
-          <Tombol sibuk={simpanBusy} disabled={praBusy} onclick={simpanTts}>Simpan suara</Tombol>
+          <Tombol sibuk={simpanBusy} disabled={praBusy || !!galatSuara} onclick={simpanTts}>Simpan suara</Tombol>
         </div>
       </div>
     </Kartu>
@@ -370,6 +392,7 @@
     <Medan label="Nama suara" untuk="gn-nama" galat={gnGalat}>
       <input id="gn-nama" class={kelasInput} bind:value={gnNama} autocomplete="off" aria-invalid={!!gnGalat} aria-describedby={gnGalat ? 'gn-nama-galat' : undefined} />
     </Medan>
+    {#if gnGalatForm}<p class="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{gnGalatForm}</p>{/if}
   </form>
   {#snippet aksi()}
     <Tombol varian="kedua" onclick={() => (gnBuka = false)}>Batal</Tombol>
@@ -392,6 +415,7 @@
         </label>
       {/each}
     </fieldset>
+    {#if utGalatForm}<p class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{utGalatForm}</p>{/if}
   </form>
   {#snippet aksi()}
     <Tombol varian="kedua" onclick={() => (utBuka = false)}>Batal</Tombol>
