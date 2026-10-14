@@ -72,3 +72,10 @@ CREATE TABLE IF NOT EXISTS riwayat_bel (
 );
 
 CREATE INDEX IF NOT EXISTS riwayat_bel_tanggal ON riwayat_bel (tanggal);
+
+CREATE TABLE IF NOT EXISTS template (
+  id      INTEGER PRIMARY KEY,
+  nama    TEXT NOT NULL UNIQUE,
+  data    TEXT NOT NULL,
+  dibuat  TEXT NOT NULL
+);
