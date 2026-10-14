@@ -31,15 +31,24 @@
   const jenisManual = $derived(jenisBel.filter((j) => j.nama !== 'Darurat'))
   const jenisDarurat = $derived(jenisBel.find((j) => j.nama === 'Darurat') ?? jenisBel[0])
 
+  let urutMuat = 0
+  let gagalBerturut = $state(0)
+
   async function muat() {
+    const urut = ++urutMuat
     try {
       const s = await api.get<Status>('/status')
+      if (urut !== urutMuat) return
       status = s
+      gagalBerturut = 0
+      if (jenisBel.length === 0) muatJenis()
       dasarMs = Date.parse(s.sekarang)
       dasarPerf = performance.now()
       sekarangMs = dasarMs
       galatMuat = ''
     } catch (e) {
+      if (urut !== urutMuat) return
+      gagalBerturut++
       if (!status) galatMuat = e instanceof Error ? e.message : String(e)
     }
   }
@@ -112,7 +121,8 @@
     }
   }
 
-  function mulaiMenahan() {
+  function mulaiMenahan(e?: PointerEvent) {
+    if (e && (e.button !== 0 || !e.isPrimary)) return
     if (menahan || sibukDarurat) return
     menahan = true
     progres = 0
@@ -173,9 +183,12 @@
         {:else if status.profil}
           <p class="mt-3 inline-block rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-800">Profil: {status.profil.nama}</p>
         {/if}
+        {#if gagalBerturut >= 2}
+          <p role="status" class="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900 ring-1 ring-amber-300">Koneksi ke server terputus — data mungkin tidak terbaru</p>
+        {/if}
       </Kartu>
 
-      {#each status.peringatan as p (p)}
+      {#each status.peringatan as p, i (`${i}-${p}`)}
         <div role="alert" class="rounded-xl bg-amber-50 px-4 py-3 text-amber-900 ring-1 ring-amber-300">{p}</div>
       {/each}
 
@@ -217,8 +230,8 @@
             type="button"
             aria-label="Tahan 2 detik untuk bel darurat"
             disabled={sibukDarurat || !jenisDarurat}
-            class="relative inline-flex min-h-14 w-full touch-none select-none items-center justify-center overflow-hidden rounded-xl bg-red-600 px-4 py-3 font-semibold text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:opacity-50"
-            onpointerdown={mulaiMenahan}
+            class="relative inline-flex min-h-14 w-full touch-none select-none [-webkit-touch-callout:none] items-center justify-center overflow-hidden rounded-xl bg-red-600 px-4 py-3 font-semibold text-white hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:opacity-50"
+            onpointerdown={(e) => mulaiMenahan(e)}
             onpointerup={batalTahan}
             onpointerleave={batalTahan}
             onpointercancel={batalTahan}
