@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext } from '@playwright/test'
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 import { jenisBelId, unik } from './bantu'
 
 interface ProfilApi { id: number; nama: string; jumlahBel: number }
@@ -35,6 +35,13 @@ async function hapusProfilBernama(request: APIRequestContext, ...nama: string[])
   for (const p of await daftarProfil(request)) {
     if (nama.includes(p.nama)) await request.delete(`/api/profil/${p.id}`)
   }
+}
+
+/** Setelah redirect ke /jadwal?profil=ID: halaman Jadwal tampil (bukan "tidak ditemukan") dan profil terpilih. */
+async function harapJadwalTerpilih(page: Page, id: string | number) {
+  await expect(page.getByRole('heading', { level: 1, name: 'Jadwal' })).toBeVisible()
+  await expect(page.getByText('Halaman tidak ditemukan')).toHaveCount(0)
+  await expect(page.locator('#jadwal-profil')).toHaveValue(String(id))
 }
 
 test('duplikat profil menghasilkan salinan dengan jumlah bel sama', async ({ page, request }) => {
@@ -82,6 +89,7 @@ test('ekspor profil lalu impor file yang sama', async ({ page, request }, testIn
     expect(baru).toBeTruthy()
     expect(baru!.jumlahBel).toBe(asal.jumlahBel)
     expect(new URL(page.url()).searchParams.get('profil')).toBe(String(baru!.id))
+    await harapJadwalTerpilih(page, baru!.id)
   } finally {
     await hapusProfilBernama(request, namaAsal, hasilImpor)
   }
@@ -108,9 +116,12 @@ test('impor file dengan jenis bel baru lewat pemetaan', async ({ page, request }
     await peta.selectOption({ label: 'Buat jenis bel baru' })
     await panel.getByRole('button', { name: 'Impor', exact: true }).click()
     await expect(page).toHaveURL(/\/jadwal\?profil=\d+/)
+    const baru = (await daftarProfil(request)).find((p) => p.nama === nama)
+    expect(baru).toBeTruthy()
+    await harapJadwalTerpilih(page, baru!.id)
 
     await page.goto('/jenis-bel')
-    await expect(page.getByText(jenis).first()).toBeVisible()
+    await expect(page.getByText(jenis).and(page.locator(':visible')).first()).toBeVisible()
   } finally {
     await hapusProfilBernama(request, nama)
     const daftar = (await (await request.get('/api/jenis-bel')).json()) as { id: number; nama: string }[]

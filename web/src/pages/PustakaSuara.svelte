@@ -320,12 +320,12 @@
   <div class="hidden md:block">
   <Tabel label="Daftar suara" jumlah={tampil.length} kosong="Belum ada suara di kategori ini.">
     {#snippet kepala()}
-      <th>Nama</th>
-      <th>Sumber</th>
-      <th>Durasi</th>
-      <th>Putar di browser</th>
-      <th>Tes</th>
-      <th class="text-right">Aksi</th>
+      <th scope="col">Nama</th>
+      <th scope="col">Sumber</th>
+      <th scope="col">Durasi</th>
+      <th scope="col">Putar di browser</th>
+      <th scope="col">Tes</th>
+      <th scope="col" class="text-right">Aksi</th>
     {/snippet}
     {#each tampil as a (a.id)}
       {@const sedangMemutar = memutar === `a:${a.id}`}

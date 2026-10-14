@@ -157,10 +157,10 @@
   <div class="hidden md:block">
   <Tabel label="Daftar jenis bel" jumlah={daftar.length} kosong="Belum ada jenis bel. Tambahkan yang pertama.">
     {#snippet kepala()}
-      <th class="w-10"><span class="sr-only">Warna</span></th>
-      <th>Nama</th>
-      <th>Urutan suara</th>
-      <th class="text-right">Aksi</th>
+      <th scope="col" class="w-10"><span class="sr-only">Warna</span></th>
+      <th scope="col">Nama</th>
+      <th scope="col">Urutan suara</th>
+      <th scope="col" class="text-right">Aksi</th>
     {/snippet}
     {#each daftar as j (j.id)}
       <tr>

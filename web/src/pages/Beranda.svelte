@@ -209,7 +209,7 @@
       <p role="status" class="rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900 ring-1 ring-amber-300">Koneksi ke server terputus — data mungkin tidak terbaru</p>
     {/if}
 
-    <div class="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-3">
+    <div data-testid="beranda-grid" class="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-3">
       <Kartu class="lg:col-span-2">
         <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Bel berikutnya</h2>
         {#if status.berikutnya}

@@ -83,7 +83,7 @@ test('tata letak dasbor 1440x900: bel berikutnya dan bel manual sebaris', async 
   const a = (await berikutnya.boundingBox())!
   const b = (await manual.boundingBox())!
   expect(Math.abs(a.y - b.y)).toBeLessThanOrEqual(8)
-  const grid = (await page.locator('main div.lg\\:grid-cols-3').first().boundingBox())!
+  const grid = (await page.getByTestId('beranda-grid').first().boundingBox())!
   expect(grid.width).toBeGreaterThanOrEqual(1100)
   await expect(page.getByRole('heading', { name: 'Status sistem' })).toBeVisible()
 })

@@ -41,6 +41,10 @@
   let berkas = $state<File | null>(null)
   let restoreSibuk = $state(false)
   let memulaiUlang = $state(false)
+  let overlayMulai = $state<HTMLElement>()
+  $effect(() => {
+    if (memulaiUlang) overlayMulai?.focus()
+  })
   let mulaiMode = $state<'restore' | 'zona'>('restore')
 
   const zonaPilihan = [
@@ -120,7 +124,7 @@
     try {
       // Simpan dulu agar volume yang dipakai sama dengan yang terlihat di slider.
       const v = volume
-      await api.put('/pengaturan', { volume: v, profilDefaultId: profilTermuat, zonaWaktu: zonaTermuat })
+      await api.put('/pengaturan', { volume: v, profilDefaultId: profilTermuat })
       await api.post(`/audio/${dingDong.id}/tes`)
       beriTahu(`Volume ${v}% disimpan, suara diputar di speaker`)
     } catch (e) {
@@ -386,7 +390,7 @@
   </div>
 
 {#if memulaiUlang}
-  <div class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-white/95 px-6 text-center" role="alertdialog" aria-live="assertive" aria-label={mulaiMode === 'zona' ? 'Menerapkan zona waktu' : 'Memulai ulang aplikasi'}>
+  <div bind:this={overlayMulai} tabindex="-1" class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-white/95 px-6 text-center outline-none" role="alertdialog" aria-modal="true" aria-live="assertive" aria-label={mulaiMode === 'zona' ? 'Menerapkan zona waktu' : 'Memulai ulang aplikasi'}>
     <span class="size-10 {tungguHabis ? 'hidden' : 'animate-spin'} rounded-full border-4 border-blue-700 border-t-transparent" aria-hidden="true"></span>
     {#if tungguHabis}
       <p class="text-xl font-semibold text-slate-900">{mulaiMode === 'zona' ? 'Aplikasi belum kembali. Muat ulang halaman sebentar lagi.' : 'Aplikasi belum menyala kembali. Periksa mini PC, lalu muat ulang halaman ini.'}</p>

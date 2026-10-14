@@ -168,11 +168,11 @@
   }
 
   async function hapus(j: Jadwal) {
-    bukaForm = false
     const ya = await konfirmasi('Hapus bel?', `Bel ${jam5(j.jam)} pada hari ${NAMA_HARI[j.hari]} akan dihapus.`)
     if (!ya) return
     try {
       await api.hapus(`/jadwal/${j.id}`)
+      bukaForm = false
       beriTahu('Bel dihapus')
       await muatJadwal()
     } catch (e) {
@@ -289,11 +289,11 @@
       <div id="panel-hari" role="tabpanel" aria-labelledby="tab-hari-{hari}" class="min-w-0">
         <Tabel label="Bel hari {NAMA_HARI[hari]}" jumlah={hariIni.length} kosong="Belum ada bel pada hari {NAMA_HARI[hari]}">
           {#snippet kepala()}
-            <th>Jam</th>
-            <th>Keterangan</th>
-            <th>Jenis bel</th>
-            <th>Suara</th>
-            <th class="text-right">Aksi</th>
+            <th scope="col">Jam</th>
+            <th scope="col">Keterangan</th>
+            <th scope="col">Jenis bel</th>
+            <th scope="col">Suara</th>
+            <th scope="col" class="text-right">Aksi</th>
           {/snippet}
           {#each hariIni as j (j.id)}
             {@const jb = jenisPer(j.jenisBelId)}

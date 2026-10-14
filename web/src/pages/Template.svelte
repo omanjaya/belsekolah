@@ -74,9 +74,10 @@
   // Debounce 300 ms; respons yang sudah usang diabaikan.
   $effect(() => {
     const kirim = JSON.stringify(badan)
+    // Naikkan urutan sekarang juga agar respons permintaan lama langsung dibuang.
+    const saya = ++urutan
+    menghitung = true
     const timer = setTimeout(async () => {
-      const saya = ++urutan
-      menghitung = true
       try {
         const hasil = await api.post<FileJadwal>('/template/buat', JSON.parse(kirim))
         if (saya !== urutan) return
@@ -138,12 +139,13 @@
     const input = e.currentTarget as HTMLInputElement
     const berkas = input.files?.[0]
     if (!berkas) return
-    const teks = await berkas.text()
-    input.value = ''
     let data: FileJadwal
     try {
+      const teks = await berkas.text()
+      input.value = ''
       data = JSON.parse(teks) as FileJadwal
     } catch {
+      input.value = ''
       beriTahu('File bukan file jadwal', 'galat')
       return
     }
@@ -359,7 +361,7 @@
         <div class="flex flex-wrap items-center gap-2">
           <h3 class="text-base font-semibold">Pratinjau</h3>
           {#if menghitung}<span class="text-sm text-slate-600" role="status">Menghitung…</span>{/if}
-          <Tombol class="md:ml-auto" onclick={buatProfil} disabled={!pratinjau || !!galatPratinjau}>
+          <Tombol class="md:ml-auto" onclick={buatProfil} disabled={!pratinjau || !!galatPratinjau || menghitung}>
             Buat profil dari jadwal ini
           </Tombol>
         </div>

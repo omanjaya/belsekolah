@@ -39,18 +39,29 @@ test('simpan volume', async ({ page, request }) => {
 })
 
 test('ganti password lalu kembalikan', async ({ page, request }) => {
-  await page.goto('/pengaturan')
-  await page.getByLabel('Password lama').fill('salah-salah')
-  await page.getByLabel('Password baru', { exact: true }).fill('password-baru-1')
-  await page.getByLabel('Ulangi password baru').fill('password-baru-1')
-  await page.getByRole('button', { name: 'Ganti password' }).click()
-  await expect(page.getByRole('alert')).toContainText('password lama salah')
+  let diganti = false
+  try {
+    await page.goto('/pengaturan')
+    await page.getByLabel('Password lama').fill('salah-salah')
+    await page.getByLabel('Password baru', { exact: true }).fill('password-baru-1')
+    await page.getByLabel('Ulangi password baru').fill('password-baru-1')
+    await page.getByRole('button', { name: 'Ganti password' }).click()
+    await expect(page.getByRole('alert')).toContainText('password lama salah')
 
-  await page.getByLabel('Password lama').fill(PASSWORD_E2E)
-  await page.getByRole('button', { name: 'Ganti password' }).click()
-  await expect(page.getByText('Password berhasil diganti')).toBeVisible()
-  const res = await request.post('/api/password', { data: { lama: 'password-baru-1', baru: PASSWORD_E2E } })
-  expect(res.ok()).toBe(true)
+    await page.getByLabel('Password lama').fill(PASSWORD_E2E)
+    await page.getByRole('button', { name: 'Ganti password' }).click()
+    await expect(page.getByText('Password berhasil diganti')).toBeVisible()
+    diganti = true
+  } finally {
+    // Kembalikan password lewat API; toleran bila password memang tidak sempat berubah.
+    let pulih = false
+    try {
+      pulih = (await request.post('/api/password', { data: { lama: 'password-baru-1', baru: PASSWORD_E2E } })).ok()
+    } catch {
+      // diabaikan: password mungkin masih yang asli
+    }
+    if (diganti) expect(pulih).toBe(true)
+  }
 })
 
 test('info sistem dan tautan backup', async ({ page }) => {
@@ -83,14 +94,20 @@ test('restore backup memulai ulang dan kembali', async ({ page, request }) => {
 test('keluar kembali ke layar login', async ({ browser }) => {
   // Konteks terpisah agar sesi utama tes lain tidak ikut keluar.
   const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } })
-  const page = await ctx.newPage()
-  await page.goto('/')
-  await page.getByLabel('Password').fill(PASSWORD_E2E)
-  await page.getByRole('button', { name: 'Masuk' }).click()
-  // Tunggu login selesai; tanpa ini goto membatalkan permintaan login yang masih berjalan.
-  await expect(page.getByRole('button', { name: 'Masuk' })).toHaveCount(0)
-  await page.goto('/pengaturan')
-  await page.getByRole('button', { name: 'Keluar' }).click()
-  await expect(page.getByRole('button', { name: 'Masuk' })).toBeVisible()
-  await ctx.close()
+  try {
+    const page = await ctx.newPage()
+    await page.goto('/')
+    await page.getByLabel('Password').fill(PASSWORD_E2E)
+    await page.getByRole('button', { name: 'Masuk' }).click()
+    // Tunggu login selesai; tanpa ini goto membatalkan permintaan login yang masih berjalan.
+    await expect(page.getByRole('heading', { level: 1, name: 'Beranda' })).toBeVisible({ timeout: 20_000 })
+    await page.goto('/pengaturan')
+    await expect(page.getByRole('heading', { level: 1, name: 'Pengaturan' })).toBeVisible({ timeout: 20_000 })
+    const logout = page.waitForResponse((r) => r.url().includes('/api/logout'))
+    await page.getByRole('banner').getByRole('button', { name: 'Keluar', exact: true }).click()
+    expect((await logout).ok()).toBe(true)
+    await expect(page.getByRole('button', { name: 'Masuk' })).toBeVisible()
+  } finally {
+    await ctx.close()
+  }
 })

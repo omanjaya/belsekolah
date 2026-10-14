@@ -61,6 +61,9 @@ test('buat profil dari pembuat, lalu simpan, impor, pakai, ganti nama, hapus tem
     await panel.getByRole('button', { name: 'Impor', exact: true }).click()
     await expect(page).toHaveURL(/\/jadwal\?profil=\d+/)
     const id = new URL(page.url()).searchParams.get('profil')
+    await expect(page.getByRole('heading', { level: 1, name: 'Jadwal' })).toBeVisible()
+    await expect(page.getByText('Halaman tidak ditemukan')).toHaveCount(0)
+    await expect(page.locator('#jadwal-profil')).toHaveValue(String(id))
 
     // ekspor profil -> impor sebagai template
     const berkas = testInfo.outputPath('profil.json')
@@ -77,7 +80,10 @@ test('buat profil dari pembuat, lalu simpan, impor, pakai, ganti nama, hapus tem
     await panel.getByLabel('Nama profil').fill(nama2)
     await panel.getByRole('button', { name: 'Impor', exact: true }).click()
     await expect(page).toHaveURL(/\/jadwal\?profil=\d+/)
-    expect(new URL(page.url()).searchParams.get('profil')).not.toBe(id)
+    const id2 = new URL(page.url()).searchParams.get('profil')
+    expect(id2).not.toBe(id)
+    await expect(page.getByRole('heading', { level: 1, name: 'Jadwal' })).toBeVisible()
+    await expect(page.locator('#jadwal-profil')).toHaveValue(String(id2))
 
     // ganti nama
     await page.goto('/template')

@@ -103,12 +103,12 @@
   <div class="hidden md:block">
   <Tabel label="Riwayat bel" jumlah={daftar.length} kosong="Tidak ada riwayat untuk filter ini">
     {#snippet kepala()}
-      <th>Waktu</th>
-      <th>Keterangan</th>
-      <th>Jenis bel</th>
-      <th>Sumber</th>
-      <th>Status</th>
-      <th>Pesan</th>
+      <th scope="col">Waktu</th>
+      <th scope="col">Keterangan</th>
+      <th scope="col">Jenis bel</th>
+      <th scope="col">Sumber</th>
+      <th scope="col">Status</th>
+      <th scope="col">Pesan</th>
     {/snippet}
     {#each daftar as r (r.id)}
       <tr>

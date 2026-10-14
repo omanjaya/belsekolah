@@ -104,9 +104,9 @@
 
   <Tabel label="Daftar libur" jumlah={urut.length} kosong="Belum ada libur">
     {#snippet kepala()}
-      <th>Tanggal</th>
-      <th>Keterangan</th>
-      <th class="text-right">Aksi</th>
+      <th scope="col">Tanggal</th>
+      <th scope="col">Keterangan</th>
+      <th scope="col" class="text-right">Aksi</th>
     {/snippet}
     {#each urut as l (l.id)}
       {@const lewat = l.selesai < hariIni}
