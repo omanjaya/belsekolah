@@ -84,8 +84,9 @@ test('libur satu hari dan rentang', async ({ page }) => {
 test('libur 1440x900: kotak tabel memenuhi lebar', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/libur')
-  const kotak = await page.getByRole('table', { name: 'Daftar libur' }).locator('xpath=ancestor::div[contains(@class,"rounded-xl")][1]').boundingBox()
-  expect(kotak!.width).toBeGreaterThanOrEqual(1100)
+  const tabel = page.getByRole('table', { name: 'Daftar libur' })
+  await expect(tabel.getByRole('columnheader', { name: 'Keterangan' })).toBeVisible()
+  expect((await tabel.boundingBox())!.width).toBeGreaterThanOrEqual(1100)
 })
 
 test('ubah nama profil ganda menampilkan galat di dalam dialog', async ({ page }) => {

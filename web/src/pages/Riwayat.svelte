@@ -100,6 +100,7 @@
 {:else if galatMuat}
   <GalatMuat pesan={galatMuat} oncoba={muat} />
 {:else}
+  <div class="hidden md:block">
   <Tabel label="Riwayat bel" jumlah={daftar.length} kosong="Tidak ada riwayat untuk filter ini">
     {#snippet kepala()}
       <th>Waktu</th>
@@ -120,4 +121,24 @@
       </tr>
     {/each}
   </Tabel>
+  </div>
+
+  <ul class="flex flex-col gap-2 md:hidden" aria-label="Riwayat bel">
+    {#each daftar as r (r.id)}
+      <li class="rounded-xl border border-slate-200 bg-white p-3">
+        <div class="flex items-start gap-3">
+          <span class="font-mono text-base font-semibold tabular-nums">{r.waktu.substring(11, 19)}</span>
+          <span class="min-w-0 flex-1 break-words">{r.label}</span>
+        </div>
+        <div class="mt-2 flex flex-wrap items-center gap-2 text-sm">
+          <span class="rounded-full bg-blue-50 px-2.5 py-0.5 font-medium text-blue-800">{SUMBER[r.sumber]}</span>
+          <span class="rounded-full px-2.5 py-0.5 font-medium {STATUS[r.status].kelas}">{STATUS[r.status].teks}</span>
+          {#if r.jenisBelId}<span class="text-slate-600">{namaJenis(r.jenisBelId)}</span>{/if}
+        </div>
+        {#if r.pesan}<p class="mt-1.5 break-words text-sm text-slate-500">{r.pesan}</p>{/if}
+      </li>
+    {:else}
+      <li class="rounded-xl border border-slate-200 bg-white px-4 py-6 text-center text-slate-600">Tidak ada riwayat untuk filter ini</li>
+    {/each}
+  </ul>
 {/if}

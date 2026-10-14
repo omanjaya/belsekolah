@@ -10,7 +10,8 @@
   import Medan from '../components/Medan.svelte'
   import Tombol from '../components/Tombol.svelte'
   import { api, type Audio, type JenisBel } from '../lib/api'
-    import { konfirmasi } from '../lib/konfirmasi.svelte'
+  import { formatDurasi } from '../lib/format'
+  import { konfirmasi } from '../lib/konfirmasi.svelte'
   import { beriTahu, galat } from '../lib/notif.svelte'
 
   const WARNA = [
@@ -48,6 +49,8 @@
 
   const audioPer = $derived(new Map(audio.map((a) => [a.id, a])))
   const namaAudio = (id: number) => audioPer.get(id)?.nama ?? `Suara #${id}`
+
+  const totalIds = (ids: number[]) => formatDurasi(ids.reduce((t, id) => t + (audioPer.get(id)?.durasiMs ?? 0), 0))
 
   async function muat() {
     galatMuat = ''
@@ -151,6 +154,7 @@
     {/snippet}
   </BarAlat>
 
+  <div class="hidden md:block">
   <Tabel label="Daftar jenis bel" jumlah={daftar.length} kosong="Belum ada jenis bel. Tambahkan yang pertama.">
     {#snippet kepala()}
       <th class="w-10"><span class="sr-only">Warna</span></th>
@@ -171,6 +175,27 @@
       </tr>
     {/each}
   </Tabel>
+  </div>
+
+  <ul class="flex flex-col gap-2 md:hidden" aria-label="Daftar jenis bel">
+    {#each daftar as j (j.id)}
+      <li class="flex overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <span class="w-2 shrink-0" style:background-color={j.warna} aria-hidden="true"></span>
+        <div class="min-w-0 flex-1 p-3">
+          <p class="break-words font-semibold text-slate-900">{j.nama}</p>
+          <p class="mt-0.5 break-words text-sm text-slate-600">{j.audioIds.map((id) => namaAudio(id)).join(' → ') || '-'}</p>
+          <p class="mt-0.5 text-xs text-slate-500">Total {totalIds(j.audioIds)}</p>
+          <div class="mt-2 flex flex-wrap gap-1">
+            <button type="button" class="min-h-11 rounded-lg px-3 text-slate-700 hover:bg-slate-100 disabled:opacity-50" disabled={tesId === j.id} aria-label="Tes di speaker {j.nama}" onclick={() => tes(j)}>Tes</button>
+            <button type="button" class="min-h-11 rounded-lg px-3 text-slate-700 hover:bg-slate-100" aria-label="Ubah {j.nama}" onclick={() => bukaForm(j)}>Ubah</button>
+            <button type="button" class="min-h-11 rounded-lg px-3 text-red-700 hover:bg-red-50" aria-label="Hapus {j.nama}" onclick={() => hapus(j)}>Hapus</button>
+          </div>
+        </div>
+      </li>
+    {:else}
+      <li class="rounded-xl border border-slate-200 bg-white px-4 py-6 text-center text-slate-600">Belum ada jenis bel. Tambahkan yang pertama.</li>
+    {/each}
+  </ul>
 {/if}
 
 <PanelGeser bind:buka={formBuka} judul={idUbah === null ? 'Tambah jenis bel' : 'Ubah jenis bel'}>
@@ -216,6 +241,7 @@
           {/each}
         </ol>
       {/if}
+      {#if urutan.length}<p class="text-sm text-slate-600">Total durasi {totalIds(urutan.map((u) => u.id))}</p>{/if}
       {#if galatSuara}<p class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{galatSuara}</p>{/if}
       <Medan label="Tambah suara" untuk="jb-tambah">
         <select id="jb-tambah" class={kelasInput} onchange={tambahSuara}>

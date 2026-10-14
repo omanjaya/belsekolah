@@ -1,5 +1,8 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { unik } from './bantu'
+
+// Tabel di laptop, daftar kartu di HP; hanya salah satunya yang terlihat.
+const barisAtauKartu = (page: Page) => page.getByRole('row').or(page.getByRole('listitem'))
 
 test('unggah, ganti nama, dengarkan, hapus suara', async ({ page, request }) => {
   const wav = await (await request.get('/api/audio/1/file')).body()
@@ -14,14 +17,14 @@ test('unggah, ganti nama, dengarkan, hapus suara', async ({ page, request }) => 
   await expect(page.getByText('Suara diunggah')).toBeVisible()
 
   await page.getByRole('tab', { name: 'Unggahan' }).click()
-  const baris = page.getByRole('row').filter({ hasText: nama })
+  const baris = barisAtauKartu(page).filter({ hasText: nama })
   await expect(baris).toBeVisible()
-  await expect(page.getByRole('row').filter({ hasText: 'Ding Dong Panjang' })).toHaveCount(0)
+  await expect(barisAtauKartu(page).filter({ hasText: 'Ding Dong Panjang' })).toHaveCount(0)
 
   await baris.getByRole('button', { name: 'Ganti nama' }).click()
   await page.getByRole('dialog', { name: 'Ganti nama suara' }).getByLabel('Nama suara').fill(nama + ' Baru')
   await page.getByRole('dialog', { name: 'Ganti nama suara' }).getByRole('button', { name: 'Simpan' }).click()
-  const barisBaru = page.getByRole('row').filter({ hasText: nama + ' Baru' })
+  const barisBaru = barisAtauKartu(page).filter({ hasText: nama + ' Baru' })
   await expect(barisBaru).toBeVisible()
 
   await barisBaru.getByRole('button', { name: 'Tes di speaker' }).click()
@@ -44,7 +47,7 @@ test('file bukan audio ditolak', async ({ page }) => {
 test('suara bawaan tidak bisa dihapus atau diganti nama', async ({ page }) => {
   await page.goto('/suara')
   await page.getByRole('tab', { name: 'Bawaan' }).click()
-  const baris = page.getByRole('row').filter({ hasText: 'Sirene' })
+  const baris = barisAtauKartu(page).filter({ hasText: 'Sirene' })
   await expect(baris.getByRole('button', { name: 'Hapus' })).toHaveCount(0)
   await expect(baris.getByRole('button', { name: 'Ganti nama' })).toHaveCount(0)
 })
@@ -64,7 +67,7 @@ test('jenis bel: tambah dengan urutan, ubah urutan, tes, hapus', async ({ page }
   await modal.getByRole('button', { name: 'Naikkan Sirene' }).click()
   await modal.getByRole('button', { name: 'Simpan' }).click()
 
-  const kartu = page.getByRole('row').filter({ hasText: nama })
+  const kartu = barisAtauKartu(page).filter({ hasText: nama })
   await expect(kartu).toContainText('Sirene → Ding Dong')
 
   await kartu.getByRole('button', { name: 'Tes di speaker' }).click()
@@ -107,7 +110,8 @@ test('lebar 1440x900: tabel jenis bel dan pustaka suara memenuhi lebar', async (
   await page.setViewportSize({ width: 1440, height: 900 })
   for (const [url, label] of [['/jenis-bel', 'Daftar jenis bel'], ['/suara', 'Daftar suara']]) {
     await page.goto(url)
-    const kotak = await page.getByRole('table', { name: label }).locator('xpath=ancestor::div[contains(@class,"rounded-xl")][1]').boundingBox()
-    expect(kotak!.width).toBeGreaterThanOrEqual(1100)
+    const tabel = page.getByRole('table', { name: label })
+    await expect(tabel.getByRole('columnheader', { name: 'Nama' })).toBeVisible()
+    expect((await tabel.boundingBox())!.width).toBeGreaterThanOrEqual(1100)
   }
 })

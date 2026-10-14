@@ -259,6 +259,7 @@
     try {
       const blob = await api.post<Blob>('/tts/pratinjau', { teks: teks.trim(), suara: suaraTts })
       cabutPratinjau()
+      if (!ttsBuka) return
       urlPratinjau = URL.createObjectURL(blob)
       await putar('pratinjau', urlPratinjau)
     } catch (e) {
@@ -316,6 +317,7 @@
 {:else if galatMuat}
   <GalatMuat pesan={galatMuat} oncoba={muat} />
 {:else}
+  <div class="hidden md:block">
   <Tabel label="Daftar suara" jumlah={tampil.length} kosong="Belum ada suara di kategori ini.">
     {#snippet kepala()}
       <th>Nama</th>
@@ -332,7 +334,7 @@
         <td><span class="rounded-full px-2 py-0.5 text-xs font-medium {GAYA_SUMBER[a.sumber]}">{NAMA_SUMBER[a.sumber]}</span></td>
         <td class="whitespace-nowrap tabular-nums text-slate-600">{formatDurasi(a.durasiMs)}</td>
         <td>
-          <button type="button" class="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-slate-700 hover:bg-slate-100" onclick={() => dengarkan(a)} aria-label="{sedangMemutar ? 'Berhenti' : 'Dengarkan'} {a.nama}">
+          <button type="button" class="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-slate-700 hover:bg-slate-100" onclick={() => dengarkan(a)} aria-label="{sedangMemutar ? 'Berhenti' : 'Putar'} {a.nama}">
             {#if sedangMemutar}<Square class="size-4" /> Berhenti{:else}<Play class="size-4" /> Putar{/if}
           </button>
         </td>
@@ -353,6 +355,37 @@
       </tr>
     {/each}
   </Tabel>
+  </div>
+
+  <ul class="flex flex-col gap-2 md:hidden" aria-label="Daftar suara">
+    {#each tampil as a (a.id)}
+      {@const sedangMemutar = memutar === `a:${a.id}`}
+      <li class="rounded-xl border border-slate-200 bg-white p-3">
+        <p class="break-words font-semibold text-slate-900">{a.nama}</p>
+        <div class="mt-1 flex flex-wrap items-center gap-2 text-sm">
+          <span class="rounded-full px-2 py-0.5 text-xs font-medium {GAYA_SUMBER[a.sumber]}">{NAMA_SUMBER[a.sumber]}</span>
+          <span class="tabular-nums text-slate-500">{formatDurasi(a.durasiMs)}</span>
+        </div>
+        <div class="mt-2 flex flex-wrap gap-1">
+          <button type="button" class="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-slate-700 hover:bg-slate-100" onclick={() => dengarkan(a)} aria-label="{sedangMemutar ? 'Berhenti' : 'Putar'} {a.nama}">
+            {#if sedangMemutar}<Square class="size-4" /> Berhenti{:else}<Play class="size-4" /> Putar{/if}
+          </button>
+          <button type="button" class="min-h-11 rounded-lg px-3 text-slate-700 hover:bg-slate-100 disabled:opacity-50" disabled={tesId === a.id} onclick={() => tes(a)} aria-label="Tes di speaker {a.nama}">Tes</button>
+          {#if a.sumber !== 'bawaan'}
+            <button type="button" class="min-h-11 rounded-lg px-3 text-slate-700 hover:bg-slate-100" onclick={() => bukaGantiNama(a)} aria-label="Ganti nama {a.nama}">Ganti nama</button>
+          {/if}
+          {#if a.sumber === 'tts'}
+            <button type="button" class="min-h-11 rounded-lg px-3 text-slate-700 hover:bg-slate-100" onclick={() => bukaUbahTeks(a)} aria-label="Ubah teks {a.nama}">Ubah teks</button>
+          {/if}
+          {#if a.sumber !== 'bawaan'}
+            <button type="button" class="min-h-11 rounded-lg px-3 text-red-700 hover:bg-red-50" onclick={() => hapus(a)} aria-label="Hapus {a.nama}">Hapus</button>
+          {/if}
+        </div>
+      </li>
+    {:else}
+      <li class="rounded-xl border border-slate-200 bg-white px-4 py-6 text-center text-slate-600">Belum ada suara di kategori ini.</li>
+    {/each}
+  </ul>
 {/if}
 
 <PanelGeser bind:buka={unggahBuka} judul="Unggah suara">
