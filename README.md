@@ -63,6 +63,9 @@ internal/sistem/   pembungkus ffprobe dan timedatectl
 internal/store/    penyimpanan SQLite
 internal/tts/      edge-tts
 internal/webui/    frontend hasil build (dist) tertanam
+internal/zona/     zona waktu Indonesia (WIB/WITA/WIT) dan pemilihan zona aktif
+internal/formatjadwal/ file jadwal: ekspor/impor profil dan template
+internal/pembuat/  penyusun jadwal bel dari parameter sekolah
 web/               kode frontend Svelte 5 dan tes Playwright
 e2e/               tes end-to-end Go terhadap Docker
 deploy/            pemasang dan layanan systemd untuk mini PC

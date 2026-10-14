@@ -215,6 +215,8 @@ Docker **hanya** dipakai untuk development dan pengujian; deploy di mini PC teta
 
 Semua di bawah `/api`, body dan respons JSON (kecuali upload/unduh). Error: `{"error": "<pesan Indonesia>"}` dengan kode 400 (validasi), 401 (belum login), 403 (wajib ganti password), 404, 409 (dipakai/duplikat/tumpang tindih), 429 (login terkunci). Semua perubahan data memicu muat ulang penjadwal.
 
+Tambahan tahap 2: lihat `2026-10-15-tampilan-zona-template-design.md` §7.
+
 | Metode & Path | Keterangan |
 |---|---|
 | `POST /login` `{password}` | Set cookie sesi; balas `{wajibGantiPassword}` |
