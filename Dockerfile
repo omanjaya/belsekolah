@@ -10,7 +10,7 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.versi=${VERSI}" -o 
 
 FROM debian:trixie-slim
 RUN apt-get update \
- && apt-get install -y --no-install-recommends mpv ffmpeg ca-certificates tzdata python3 pipx \
+ && apt-get install -y --no-install-recommends mpv ffmpeg ca-certificates tzdata curl python3 pipx \
  && rm -rf /var/lib/apt/lists/*
 RUN PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install edge-tts \
  && edge-tts --list-voices | grep -q id-ID-GadisNeural

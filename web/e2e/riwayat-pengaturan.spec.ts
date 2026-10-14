@@ -62,7 +62,13 @@ test('restore backup memulai ulang dan kembali', async ({ page, request }) => {
   await page.getByRole('button', { name: 'Pulihkan dari backup' }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Pulihkan' }).click()
   await expect(page.getByText('Memulai ulang aplikasi…')).toBeVisible()
-  await expect(page.getByLabel('Password')).toBeVisible({ timeout: 120_000 }) // sesi di memori hilang setelah restart
+  // Sesi di memori hilang setelah restart, jadi layar login muncul. (Label 'Password' ambigu dengan form ganti password.)
+  await expect(page.getByRole('button', { name: 'Masuk' })).toBeVisible({ timeout: 120_000 })
+  // Masuk lagi dan simpan sesi baru agar tes berikutnya (yang memakai e2e/.auth.json) tetap masuk.
+  await page.getByLabel('Password').fill(PASSWORD_E2E)
+  await page.getByRole('button', { name: 'Masuk' }).click()
+  await expect(page.getByRole('heading', { name: 'Pengaturan' })).toBeVisible()
+  await page.context().storageState({ path: 'e2e/.auth.json' })
 })
 
 test('keluar kembali ke layar login', async ({ browser }) => {
