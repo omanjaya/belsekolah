@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
   import JudulHalaman from '../components/JudulHalaman.svelte'
   import Kartu from '../components/Kartu.svelte'
   import Tombol from '../components/Tombol.svelte'
@@ -12,7 +12,13 @@
 
   const input = 'min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20'
 
-  let memuat = $state(true)
+  let memuatSuara = $state(true)
+  let memuatSistem = $state(true)
+  let galatSuara = $state(false)
+  let galatSistem = $state(false)
+  let profilTermuat = 0
+  let batal = false
+  let tungguHabis = $state(false)
   let volume = $state(70)
   let profilId = $state(0)
   let profil = $state<Profil[]>([])
@@ -34,30 +40,50 @@
   let memulaiUlang = $state(false)
   let keluarSibuk = $state(false)
 
-  onMount(async () => {
+  async function muatSuara() {
+    memuatSuara = true
+    galatSuara = false
     try {
-      const [p, pr, a, s] = await Promise.all([
+      const [p, pr, a] = await Promise.all([
         api.get<Pengaturan>('/pengaturan'),
         api.get<Profil[]>('/profil'),
         api.get<Audio[]>('/audio'),
-        api.get<Sistem>('/sistem'),
       ])
       volume = p.volume
       profilId = p.profilDefaultId
+      profilTermuat = p.profilDefaultId
       profil = pr
       audio = a
-      sistem = s
-    } catch (e) {
-      galat(e)
+    } catch {
+      galatSuara = true
     } finally {
-      memuat = false
+      memuatSuara = false
     }
+  }
+
+  async function muatSistem() {
+    memuatSistem = true
+    galatSistem = false
+    try {
+      sistem = await api.get<Sistem>('/sistem')
+    } catch {
+      galatSistem = true
+    } finally {
+      memuatSistem = false
+    }
+  }
+
+  onMount(() => {
+    void muatSuara()
+    void muatSistem()
   })
+  onDestroy(() => { batal = true })
 
   async function simpan() {
     simpanSibuk = true
     try {
       await api.put('/pengaturan', { volume, profilDefaultId: profilId })
+      profilTermuat = profilId
       beriTahu('Pengaturan disimpan')
     } catch (e) {
       galat(e)
@@ -72,9 +98,10 @@
     tesSibuk = true
     try {
       // Simpan dulu agar volume yang dipakai sama dengan yang terlihat di slider.
-      await api.put('/pengaturan', { volume, profilDefaultId: profilId })
+      const v = volume
+      await api.put('/pengaturan', { volume: v, profilDefaultId: profilTermuat })
       await api.post(`/audio/${dingDong.id}/tes`)
-      beriTahu('Suara diputar di speaker')
+      beriTahu(`Volume ${v}% disimpan, suara diputar di speaker`)
     } catch (e) {
       galat(e)
     } finally {
@@ -87,7 +114,7 @@
     pwGalat = ''
     galatBaru = ''
     if (baru.length < 8) { galatBaru = 'Password baru minimal 8 karakter'; return }
-    if (baru !== ulangi) { pwGalat = 'Password tidak sama'; return }
+    if (baru !== ulangi) { if (!galatUlang) pwGalat = 'Password tidak sama'; return }
     pwSibuk = true
     try {
       await api.post('/password', { lama, baru })
@@ -117,21 +144,33 @@
     beriTahu('Alamat disalin')
   }
 
-  async function tungguHidup() {
-    const batas = Date.now() + 120_000
-    await new Promise((r) => setTimeout(r, 2000))
-    while (Date.now() < batas) {
-      try {
-        await api.get('/sesi')
-        location.reload()
-        return
-      } catch {
-        /* server masih mati */
-      }
-      await new Promise((r) => setTimeout(r, 2000))
+  async function sesiHidup(): Promise<boolean> {
+    const ac = new AbortController()
+    const t = setTimeout(() => ac.abort(), 5000)
+    try {
+      const res = await fetch('/api/sesi', { signal: ac.signal })
+      return res.ok
+    } catch {
+      return false
+    } finally {
+      clearTimeout(t)
     }
-    memulaiUlang = false
-    galat(new Error('Aplikasi belum menyala kembali. Muat ulang halaman ini beberapa saat lagi.'))
+  }
+
+  const tidur = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+  async function tungguHidup() {
+    tungguHabis = false
+    const batas = Date.now() + 120_000
+    await tidur(2000)
+    while (!batal && Date.now() < batas) {
+      if (await sesiHidup()) {
+        if (!batal) location.reload()
+        return
+      }
+      await tidur(2000)
+    }
+    if (!batal) tungguHabis = true
   }
 
   async function pulihkan() {
@@ -178,12 +217,17 @@
 
 <JudulHalaman judul="Pengaturan" keterangan="Suara, keamanan, dan perawatan aplikasi." />
 
-{#if memuat}
-  <Memuat />
-{:else}
-  <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
     <Kartu>
       <h2 class="mb-3 text-lg font-semibold">Suara</h2>
+      {#if memuatSuara}
+        <Memuat />
+      {:else if galatSuara}
+        <div class="flex flex-col items-start gap-3" role="alert">
+          <p class="text-red-600">Pengaturan gagal dimuat</p>
+          <Tombol varian="kedua" onclick={muatSuara}>Coba lagi</Tombol>
+        </div>
+      {:else}
       <div class="flex flex-col gap-4">
         <Medan label="Volume: {volume}%" untuk="pg-volume">
           <input id="pg-volume" type="range" min="0" max="100" step="1" bind:value={volume} class="h-11 w-full accent-blue-700" />
@@ -194,10 +238,11 @@
           </select>
         </Medan>
         <div class="flex flex-wrap gap-2">
-          <Tombol onclick={simpan} sibuk={simpanSibuk}>Simpan pengaturan</Tombol>
-          <Tombol varian="kedua" onclick={tes} sibuk={tesSibuk}>Tes volume</Tombol>
+          <Tombol onclick={simpan} sibuk={simpanSibuk} disabled={galatSuara || memuatSuara}>Simpan pengaturan</Tombol>
+          <Tombol varian="kedua" onclick={tes} sibuk={tesSibuk} disabled={galatSuara || memuatSuara}>Tes volume</Tombol>
         </div>
       </div>
+      {/if}
     </Kartu>
 
     <Kartu>
@@ -219,7 +264,14 @@
 
     <Kartu>
       <h2 class="mb-3 text-lg font-semibold">Info sistem</h2>
-      {#if sistem}
+      {#if memuatSistem}
+        <Memuat />
+      {:else if galatSistem}
+        <div class="flex flex-col items-start gap-3" role="alert">
+          <p class="text-red-600">Info sistem gagal dimuat</p>
+          <Tombol varian="kedua" onclick={muatSistem}>Coba lagi</Tombol>
+        </div>
+      {:else if sistem}
         <dl class="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
           <dt class="text-slate-600">Versi</dt>
           <dd class="break-words font-medium">{sistem.versi}</dd>
@@ -265,12 +317,16 @@
   <div class="mt-6">
     <Tombol varian="kedua" onclick={keluar} sibuk={keluarSibuk}>Keluar</Tombol>
   </div>
-{/if}
 
 {#if memulaiUlang}
   <div class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-white/95 px-6 text-center" role="alertdialog" aria-live="assertive" aria-label="Memulai ulang aplikasi">
-    <span class="size-10 animate-spin rounded-full border-4 border-blue-700 border-t-transparent" aria-hidden="true"></span>
-    <p class="text-xl font-semibold text-slate-900">Memulai ulang aplikasi…</p>
-    <p class="text-slate-600">Mohon tunggu, halaman akan dimuat ulang otomatis.</p>
+    <span class="size-10 {tungguHabis ? 'hidden' : 'animate-spin'} rounded-full border-4 border-blue-700 border-t-transparent" aria-hidden="true"></span>
+    {#if tungguHabis}
+      <p class="text-xl font-semibold text-slate-900">Aplikasi belum menyala kembali. Periksa mini PC, lalu muat ulang halaman ini.</p>
+      <Tombol onclick={() => location.reload()}>Muat ulang</Tombol>
+    {:else}
+      <p class="text-xl font-semibold text-slate-900">Memulai ulang aplikasi…</p>
+      <p class="text-slate-600">Mohon tunggu, halaman akan dimuat ulang otomatis.</p>
+    {/if}
   </div>
 {/if}

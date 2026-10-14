@@ -7,6 +7,7 @@
   import Kosong from '../components/Kosong.svelte'
   import { api, type Riwayat, type Status } from '../lib/api'
   import { galat } from '../lib/notif.svelte'
+  import { tanggalHariIni } from '../lib/format'
 
   const input = 'min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20'
   const STATUS: Record<Riwayat['status'], { teks: string; kelas: string }> = {
@@ -23,6 +24,7 @@
   let daftar = $state<Riwayat[]>([])
   let memuat = $state(true)
   let siap = $state(false)
+  let tanggalLokal = $state(false)
   let urut = 0
 
   async function muat() {
@@ -44,8 +46,9 @@
   onMount(async () => {
     try {
       tanggal = (await api.get<Status>('/status')).tanggal
-    } catch (e) {
-      galat(e)
+    } catch {
+      tanggal = tanggalHariIni(Date.now(), -new Date().getTimezoneOffset())
+      tanggalLokal = true
     }
     siap = true
   })
@@ -69,6 +72,7 @@
 <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
   <Medan label="Tanggal" untuk="rw-tanggal">
     <input id="rw-tanggal" type="date" bind:value={tanggal} class={input} />
+    {#if tanggalLokal}<p class="text-sm text-amber-700">Tanggal memakai jam HP karena status server gagal dimuat</p>{/if}
   </Medan>
   <Medan label="Status" untuk="rw-status">
     <select id="rw-status" bind:value={status} class={input}>
