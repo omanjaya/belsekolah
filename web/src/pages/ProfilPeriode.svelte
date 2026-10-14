@@ -1,16 +1,19 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { Pencil, Trash2 } from '@lucide/svelte'
-  import { api, type Pengaturan, type Periode, type Profil, type Status } from '../lib/api'
+  import { Copy, Download, FileDown, Pencil, Star, Trash2 } from '@lucide/svelte'
+  import { api, unduh, type FileJadwal, type Pengaturan, type Periode, type Profil, type Status } from '../lib/api'
   import { formatRentang } from '../lib/format'
   import { beriTahu, galat } from '../lib/notif.svelte'
   import { konfirmasi } from '../lib/konfirmasi.svelte'
+  import { pindah } from '../lib/router.svelte'
   import JudulHalaman from '../components/JudulHalaman.svelte'
   import Kartu from '../components/Kartu.svelte'
-  import Kosong from '../components/Kosong.svelte'
   import Memuat from '../components/Memuat.svelte'
   import GalatMuat from '../components/GalatMuat.svelte'
-  import Modal from '../components/Modal.svelte'
+  import PanelGeser from '../components/PanelGeser.svelte'
+  import Tabel from '../components/Tabel.svelte'
+  import BarAlat from '../components/BarAlat.svelte'
+  import AlurImpor from '../components/AlurImpor.svelte'
   import Medan from '../components/Medan.svelte'
   import Tombol from '../components/Tombol.svelte'
 
@@ -50,22 +53,122 @@
   const namaProfil = (id: number) => profil.find((p) => p.id === id)?.nama ?? '—'
 
   // --- Profil ---
+  let bukaTambah = $state(false)
   let namaBaru = $state('')
   let sibukTambah = $state(false)
+  let galatTambah = $state('')
+
+  function bukaFormTambah() {
+    namaBaru = ''
+    galatTambah = ''
+    bukaTambah = true
+  }
 
   async function tambahProfil(e: SubmitEvent) {
     e.preventDefault()
+    galatTambah = ''
     sibukTambah = true
     try {
       await api.post('/profil', { nama: namaBaru })
-      namaBaru = ''
+      bukaTambah = false
       beriTahu('Profil ditambahkan')
       await muat()
     } catch (err) {
-      galat(err)
+      galatTambah = err instanceof Error ? err.message : String(err)
     } finally {
       sibukTambah = false
     }
+  }
+
+  // --- Duplikat ---
+  let bukaDuplikat = $state(false)
+  let duplikatId = $state(0)
+  let duplikatNama = $state('')
+  let sibukDuplikat = $state(false)
+  let galatDuplikat = $state('')
+
+  function bukaFormDuplikat(p: Profil) {
+    duplikatId = p.id
+    duplikatNama = `${p.nama} (salinan)`
+    galatDuplikat = ''
+    bukaDuplikat = true
+  }
+
+  async function simpanDuplikat(e: SubmitEvent) {
+    e.preventDefault()
+    galatDuplikat = ''
+    sibukDuplikat = true
+    try {
+      await api.post(`/profil/${duplikatId}/duplikat`, { nama: duplikatNama })
+      bukaDuplikat = false
+      beriTahu(`Profil ${duplikatNama} dibuat`)
+      await muat()
+    } catch (err) {
+      galatDuplikat = err instanceof Error ? err.message : String(err)
+    } finally {
+      sibukDuplikat = false
+    }
+  }
+
+  // --- Ekspor & template ---
+  async function ekspor(p: Profil) {
+    try {
+      await unduh(`/profil/${p.id}/ekspor`)
+    } catch (err) {
+      galat(err)
+    }
+  }
+
+  let bukaTemplate = $state(false)
+  let templateProfilId = $state(0)
+  let templateNama = $state('')
+  let sibukTemplate = $state(false)
+  let galatTemplate = $state('')
+
+  function bukaFormTemplate(p: Profil) {
+    templateProfilId = p.id
+    templateNama = p.nama
+    galatTemplate = ''
+    bukaTemplate = true
+  }
+
+  async function simpanTemplate(e: SubmitEvent) {
+    e.preventDefault()
+    galatTemplate = ''
+    sibukTemplate = true
+    try {
+      await api.post('/template', { nama: templateNama, profilId: templateProfilId })
+      bukaTemplate = false
+      beriTahu('Template disimpan. Lihat di halaman Template.')
+    } catch (err) {
+      galatTemplate = err instanceof Error ? err.message : String(err)
+    } finally {
+      sibukTemplate = false
+    }
+  }
+
+  // --- Impor ---
+  let inputBerkas = $state<HTMLInputElement>()
+  let bukaImpor = $state(false)
+  let dataImpor = $state<FileJadwal | null>(null)
+
+  async function pilihBerkas(e: Event) {
+    const input = e.currentTarget as HTMLInputElement
+    const berkas = input.files?.[0]
+    if (!berkas) return
+    const teks = await berkas.text()
+    input.value = ''
+    try {
+      dataImpor = JSON.parse(teks) as FileJadwal
+    } catch {
+      beriTahu('File bukan file jadwal', 'galat')
+      return
+    }
+    bukaImpor = true
+  }
+
+  function imporSelesai(id: number) {
+    pindah(`/jadwal?profil=${id}`)
   }
 
   async function jadikanDefault(p: Profil) {
@@ -175,86 +278,130 @@
   keterangan="Profil adalah kumpulan jadwal; periode khusus memakai profil tertentu pada tanggal tertentu."
 />
 
-{#if memuat}
-  <Memuat />
-{:else if galatMuat}
+{#if galatMuat}
   <GalatMuat pesan={galatMuat} oncoba={muat} />
 {:else}
-  <div class="grid gap-5 lg:grid-cols-2 lg:items-start">
+  <div class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
     <Kartu>
       <h2 class="mb-3 text-lg font-semibold">Profil</h2>
-      <form class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end" onsubmit={tambahProfil}>
-        <div class="flex-1">
-          <Medan label="Nama profil baru" untuk="profil-baru">
-            <input id="profil-baru" class={kelasInput} bind:value={namaBaru} required maxlength="60" />
-          </Medan>
-        </div>
-        <Tombol type="submit" sibuk={sibukTambah}>Tambah profil</Tombol>
-      </form>
-      {#if profil.length === 0}
-        <Kosong pesan="Belum ada profil" />
-      {:else}
-        <ul class="divide-y divide-slate-200">
-          {#each profil as p (p.id)}
-            {@const isDefault = p.id === pengaturan.profilDefaultId}
-            <li class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
-              <span class="min-w-0 flex-1 break-words font-medium">{p.nama}</span>
+      <BarAlat>
+        {#snippet kanan()}
+          <input
+            bind:this={inputBerkas}
+            type="file"
+            accept=".json,application/json"
+            class="hidden"
+            aria-label="Berkas jadwal"
+            onchange={pilihBerkas}
+          />
+          <Tombol varian="kedua" onclick={() => inputBerkas?.click()}>Impor jadwal</Tombol>
+          <Tombol onclick={bukaFormTambah}>+ Profil</Tombol>
+        {/snippet}
+      </BarAlat>
+      <Tabel label="Daftar profil" {memuat} jumlah={profil.length} kosong="Belum ada profil">
+        {#snippet kepala()}
+          <th scope="col">Nama</th>
+          <th scope="col" class="whitespace-nowrap">Jumlah bel</th>
+          <th scope="col">Aksi</th>
+        {/snippet}
+        {#each profil as p (p.id)}
+          {@const isDefault = p.id === pengaturan.profilDefaultId}
+          <tr>
+            <td class="break-words font-medium">
+              {p.nama}
               {#if isDefault}
-                <span class="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800">Default</span>
-              {:else}
-                <Tombol varian="kedua" class="text-sm" aria-label="Jadikan default {p.nama}" onclick={() => jadikanDefault(p)}>
-                  Jadikan default
-                </Tombol>
+                <span class="ml-2 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800">Default</span>
               {/if}
-              <button type="button" class={kelasIkon} aria-label="Ubah nama {p.nama}" onclick={() => bukaUbahNama(p)}>
-                <Pencil class="size-5" aria-hidden="true" />
-              </button>
-              <button type="button" class="{kelasIkon} text-red-700" aria-label="Hapus {p.nama}" onclick={() => hapusProfil(p)}>
-                <Trash2 class="size-5" aria-hidden="true" />
-              </button>
-            </li>
-          {/each}
-        </ul>
-      {/if}
+            </td>
+            <td>{p.jumlahBel ?? 0}</td>
+            <td>
+              <div class="flex gap-1">
+                <button type="button" class={kelasIkon} aria-label="Ubah nama {p.nama}" title="Ubah nama" onclick={() => bukaUbahNama(p)}>
+                  <Pencil class="size-5" aria-hidden="true" />
+                </button>
+                <button type="button" class={kelasIkon} aria-label="Duplikat {p.nama}" title="Duplikat" onclick={() => bukaFormDuplikat(p)}>
+                  <Copy class="size-5" aria-hidden="true" />
+                </button>
+                <button type="button" class={kelasIkon} aria-label="Ekspor {p.nama}" title="Ekspor" onclick={() => ekspor(p)}>
+                  <Download class="size-5" aria-hidden="true" />
+                </button>
+                <button type="button" class={kelasIkon} aria-label="Simpan {p.nama} sebagai template" title="Simpan sebagai template" onclick={() => bukaFormTemplate(p)}>
+                  <FileDown class="size-5" aria-hidden="true" />
+                </button>
+                {#if !isDefault}
+                  <button type="button" class={kelasIkon} aria-label="Jadikan default {p.nama}" title="Jadikan default" onclick={() => jadikanDefault(p)}>
+                    <Star class="size-5" aria-hidden="true" />
+                  </button>
+                {/if}
+                <button type="button" class="{kelasIkon} text-red-700" aria-label="Hapus {p.nama}" title="Hapus" onclick={() => hapusProfil(p)}>
+                  <Trash2 class="size-5" aria-hidden="true" />
+                </button>
+              </div>
+            </td>
+          </tr>
+        {/each}
+      </Tabel>
     </Kartu>
 
     <Kartu>
-      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 class="text-lg font-semibold">Periode khusus</h2>
-        <Tombol onclick={() => bukaFormPeriode()}>Tambah periode</Tombol>
-      </div>
-      {#if periode.length === 0}
-        <Kosong pesan="Belum ada periode khusus" />
-      {:else}
-        <ul class="divide-y divide-slate-200">
-          {#each periode as p (p.id)}
-            <li class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
-              <div class="min-w-0 flex-1">
-                <p class="font-medium">{formatRentang(p.mulai, p.selesai)}</p>
-                <p class="break-words text-sm text-slate-600">
-                  {namaProfil(p.profilId)}{p.keterangan ? ` · ${p.keterangan}` : ''}
-                </p>
-              </div>
+      <h2 class="mb-3 text-lg font-semibold">Periode khusus</h2>
+      <BarAlat>
+        {#snippet kanan()}
+          <Tombol onclick={() => bukaFormPeriode()}>Tambah periode</Tombol>
+        {/snippet}
+      </BarAlat>
+      <Tabel label="Daftar periode khusus" {memuat} jumlah={periode.length} kosong="Belum ada periode khusus">
+        {#snippet kepala()}
+          <th scope="col">Rentang</th>
+          <th scope="col">Profil</th>
+          <th scope="col">Keterangan</th>
+          <th scope="col">Aksi</th>
+        {/snippet}
+        {#each periode as p (p.id)}
+          <tr>
+            <td class="whitespace-nowrap font-medium">
+              {formatRentang(p.mulai, p.selesai)}
               {#if hariIni >= p.mulai && hariIni <= p.selesai}
-                <span class="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-800">Aktif</span>
+                <span class="ml-2 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-800">Aktif</span>
               {:else if p.selesai < hariIni}
-                <span class="rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-semibold text-slate-700">Selesai</span>
+                <span class="ml-2 rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-semibold text-slate-700">Selesai</span>
               {/if}
-              <button type="button" class={kelasIkon} aria-label="Ubah periode {p.keterangan || formatRentang(p.mulai, p.selesai)}" onclick={() => bukaFormPeriode(p)}>
-                <Pencil class="size-5" aria-hidden="true" />
-              </button>
-              <button type="button" class="{kelasIkon} text-red-700" aria-label="Hapus periode {p.keterangan || formatRentang(p.mulai, p.selesai)}" onclick={() => hapusPeriode(p)}>
-                <Trash2 class="size-5" aria-hidden="true" />
-              </button>
-            </li>
-          {/each}
-        </ul>
-      {/if}
+            </td>
+            <td class="break-words">{namaProfil(p.profilId)}</td>
+            <td class="break-words">{p.keterangan}</td>
+            <td>
+              <div class="flex gap-1">
+                <button type="button" class={kelasIkon} aria-label="Ubah periode {p.keterangan || formatRentang(p.mulai, p.selesai)}" title="Ubah" onclick={() => bukaFormPeriode(p)}>
+                  <Pencil class="size-5" aria-hidden="true" />
+                </button>
+                <button type="button" class="{kelasIkon} text-red-700" aria-label="Hapus periode {p.keterangan || formatRentang(p.mulai, p.selesai)}" title="Hapus" onclick={() => hapusPeriode(p)}>
+                  <Trash2 class="size-5" aria-hidden="true" />
+                </button>
+              </div>
+            </td>
+          </tr>
+        {/each}
+      </Tabel>
     </Kartu>
   </div>
 {/if}
 
-<Modal bind:buka={bukaNama} judul="Ubah nama profil">
+<PanelGeser bind:buka={bukaTambah} judul="Tambah profil">
+  <form id="form-tambah" class="flex flex-col gap-3" onsubmit={tambahProfil}>
+    <Medan label="Nama profil baru" untuk="profil-baru">
+      <input id="profil-baru" class={kelasInput} bind:value={namaBaru} required maxlength="60" />
+    </Medan>
+    {#if galatTambah}
+      <p class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{galatTambah}</p>
+    {/if}
+  </form>
+  {#snippet aksi()}
+    <Tombol varian="kedua" onclick={() => (bukaTambah = false)}>Batal</Tombol>
+    <Tombol type="submit" form="form-tambah" sibuk={sibukTambah}>Simpan</Tombol>
+  {/snippet}
+</PanelGeser>
+
+<PanelGeser bind:buka={bukaNama} judul="Ubah nama profil">
   <form id="form-nama" class="flex flex-col gap-3" onsubmit={simpanNama}>
     <Medan label="Nama profil" untuk="nama-profil">
       <input id="nama-profil" class={kelasInput} bind:value={ubahNama} required maxlength="60" />
@@ -267,9 +414,41 @@
     <Tombol varian="kedua" onclick={() => (bukaNama = false)}>Batal</Tombol>
     <Tombol type="submit" form="form-nama" sibuk={sibukNama}>Simpan</Tombol>
   {/snippet}
-</Modal>
+</PanelGeser>
 
-<Modal bind:buka={bukaPeriode} judul={periodeId ? 'Ubah periode' : 'Tambah periode'}>
+<PanelGeser bind:buka={bukaDuplikat} judul="Duplikat profil">
+  <form id="form-duplikat" class="flex flex-col gap-3" onsubmit={simpanDuplikat}>
+    <Medan label="Nama salinan" untuk="duplikat-nama">
+      <input id="duplikat-nama" class={kelasInput} bind:value={duplikatNama} required maxlength="60" />
+    </Medan>
+    {#if galatDuplikat}
+      <p class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{galatDuplikat}</p>
+    {/if}
+  </form>
+  {#snippet aksi()}
+    <Tombol varian="kedua" onclick={() => (bukaDuplikat = false)}>Batal</Tombol>
+    <Tombol type="submit" form="form-duplikat" sibuk={sibukDuplikat}>Duplikat</Tombol>
+  {/snippet}
+</PanelGeser>
+
+<PanelGeser bind:buka={bukaTemplate} judul="Simpan sebagai template">
+  <form id="form-template" class="flex flex-col gap-3" onsubmit={simpanTemplate}>
+    <Medan label="Nama template" untuk="template-nama">
+      <input id="template-nama" class={kelasInput} bind:value={templateNama} required maxlength="60" />
+    </Medan>
+    {#if galatTemplate}
+      <p class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{galatTemplate}</p>
+    {/if}
+  </form>
+  {#snippet aksi()}
+    <Tombol varian="kedua" onclick={() => (bukaTemplate = false)}>Batal</Tombol>
+    <Tombol type="submit" form="form-template" sibuk={sibukTemplate}>Simpan</Tombol>
+  {/snippet}
+</PanelGeser>
+
+<AlurImpor bind:buka={bukaImpor} data={dataImpor} onselesai={imporSelesai} />
+
+<PanelGeser bind:buka={bukaPeriode} judul={periodeId ? 'Ubah periode' : 'Tambah periode'}>
   <form id="form-periode" class="flex flex-col gap-3" onsubmit={simpanPeriode}>
     <Medan label="Tanggal mulai" untuk="per-mulai">
       <input id="per-mulai" type="date" class={kelasInput} bind:value={fMulai} required />
@@ -293,4 +472,4 @@
     <Tombol varian="kedua" onclick={() => (bukaPeriode = false)}>Batal</Tombol>
     <Tombol type="submit" form="form-periode" sibuk={sibukPeriode}>Simpan</Tombol>
   {/snippet}
-</Modal>
+</PanelGeser>
