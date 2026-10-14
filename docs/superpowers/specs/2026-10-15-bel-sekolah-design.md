@@ -116,7 +116,7 @@ schedule (murni) ──► scheduler (loop) ──► player (mpv) ──► amp
 | `periode_khusus` | `id`, `tgl_mulai`, `tgl_selesai`, `profil_id`, `keterangan` | Rentang inklusif; tidak boleh tumpang tindih |
 | `libur` | `id`, `tgl_mulai`, `tgl_selesai`, `keterangan` | Rentang inklusif |
 | `pengaturan` | `kunci`, `nilai` | `profil_default_id`, `volume`, `password_hash`, `wajib_ganti_password` |
-| `riwayat_bel` | `id`, `waktu`, `jenis_bel_id`, `label`, `sumber` (`jadwal`/`manual`/`darurat`), `status` (`berhasil`/`gagal`/`terlewat`/`cadangan`), `pesan` | Log untuk diagnosis |
+| `riwayat_bel` | `id`, `waktu`, `tanggal`, `jadwal_id` (null untuk bel manual), `jenis_bel_id`, `label`, `sumber` (`jadwal`/`manual`/`darurat`), `status` (`berhasil`/`gagal`/`terlewat`/`cadangan`/`dihentikan`), `pesan` | Log untuk diagnosis; `tanggal`+`jadwal_id` dipakai agar bel tidak berbunyi dua kali setelah restart |
 
 Penghapusan audio yang masih dipakai di `urutan_bel` ditolak; penghapusan jenis bel yang masih dipakai di `jadwal` ditolak. Profil default tidak bisa dihapus.
 
@@ -136,6 +136,7 @@ Bel manual/darurat tidak terikat aturan ini dan selalu bisa dibunyikan.
 - Bel yang terlewat lebih dari 60 detik (karena mati listrik, crash, atau jam melompat) **tidak** disusulkan; dicatat `terlewat`.
 - Jam mundur (koreksi NTP) tidak menyebabkan bel ganda.
 - Data dimuat ulang saat API mengubah data dan saat pergantian tanggal.
+- Saat dimuat ulang karena admin mengubah data, bel hari ini yang waktunya sudah lewat lebih dari 60 detik dianggap selesai tanpa dicatat `terlewat` (bel itu memang baru dibuat setelah waktunya lewat).
 
 ## 7. Pemutar Audio
 
