@@ -23,3 +23,17 @@ Temuan review yang sengaja ditunda. Tidak ada yang memblokir pemakaian; urut kir
 
 ## Deploy
 - Instal ulang tanpa internet berhenti di `apt-get update`.
+
+## Tahap 2 (Rencana 6–7) — temuan kecil yang ditunda
+
+- `formatjadwal.Baca`: error tipe JSON salah tidak menyebut bel mana; data setelah objek JSON pertama diabaikan.
+- `ImporJadwal` memvalidasi nama di file sebelum nama pengganti dipakai (file bernama kosong ditolak walau nama baru valid).
+- `/api/status` mengirim `profil.jumlahBel` = 0 (tidak dipakai UI).
+- Respons `PUT /api/pengaturan` tidak atomik (volume/profil tersimpan walau penyimpanan zona gagal).
+- Zona OS dipakai untuk log & nama folder restore sebelum `time.Local` diatur saat start.
+- Bel darurat/stop ikut ditolak 503 selama ±2,5 dtk restart setelah ganti zona (sama seperti restore).
+- Jadwal: 5–7 kolom sempit di lebar 768–1000px; profil kosong tanpa ajakan "tambah bel".
+- Tab hari (Jadwal) & tab sumber (Suara) belum mendukung navigasi tombol panah; overlay restart belum mengunci Tab.
+- Laci menu HP tanpa focus trap; pil status tidak punya keadaan "tidak terhubung".
+- Template: tanggal "Dibuat" diambil dari string UTC; layout dua kolom (lg) belum diuji otomatis.
+- Beberapa celah tes: batas parameter pembuat (kegiatan Jumat, ujian, 23:59), file >256 KB di periksa, ganti nama template ke nama yang sudah ada.
