@@ -136,8 +136,8 @@ func TestBelPadaTanggal_LiburMengalahkanPeriode(t *testing.T) {
 }
 
 func TestBelPadaTanggal_PeriodeKhususInklusif(t *testing.T) {
-	// 2026-10-26 Senin (setelah periode), 2026-10-19..23 periode ujian.
-	// Senin dalam periode tertutup libur, jadi uji batas akhir dengan data tanpa libur.
+	// Periode ujian 2026-10-19..23; Senin 19 Okt bertabrakan dengan libur di
+	// dataContoh, jadi libur dihapus untuk menguji batas periode.
 	d := dataContoh()
 	d.Libur = nil
 	for _, s := range []string{"2026-10-19", "2026-10-23"} {
