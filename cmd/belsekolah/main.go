@@ -112,6 +112,11 @@ func jalankan(dataDir, addr string, log *slog.Logger) error {
 	ctx, batal := context.WithCancelCause(sinyal)
 	defer batal(nil)
 
+	// Sebelum apa pun memakai file sementara (restore, unggahan, zip backup).
+	if err := siapkanTmp(dataDir); err != nil {
+		return err
+	}
+
 	if diterapkan, err := backup.TerapkanTertunda(dataDir, time.Now()); err != nil {
 		return fmt.Errorf("terapkan restore: %w", err)
 	} else if diterapkan {
@@ -121,6 +126,9 @@ func jalankan(dataDir, addr string, log *slog.Logger) error {
 	audioDir := filepath.Join(dataDir, "audio")
 	if err := os.MkdirAll(audioDir, 0o755); err != nil {
 		return err
+	}
+	if n := sapuSisaAudio(audioDir); n > 0 {
+		log.Warn("sisa file sementara di folder audio dihapus", "jumlah", n)
 	}
 	// Nada cadangan ditulis ulang setiap start, terpisah dari folder audio.
 	cadangan := filepath.Join(dataDir, "cadangan.wav")
@@ -175,6 +183,7 @@ func jalankan(dataDir, addr string, log *slog.Logger) error {
 	srv := &http.Server{
 		Addr:              addr,
 		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
 		Handler: api.New(api.Deps{
 			Store: st, Auth: au, Penjadwal: sch, Pemutar: pemutar,
 			DataDir: dataDir, AudioDir: audioDir, Versi: versi,
