@@ -176,6 +176,6 @@ func (s *server) tesAudio(w http.ResponseWriter, r *http.Request) {
 		s.tulisErrorData(w, err)
 		return
 	}
-	s.Pemutar.Play(player.Permintaan{Files: []string{s.pathAudio(a)}})
+	s.Pemutar.Play(player.Permintaan{Files: []string{s.pathAudio(a)}, Prioritas: player.Tes})
 	tulisPesan(w, http.StatusAccepted, "suara diputar")
 }

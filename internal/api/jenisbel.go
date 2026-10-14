@@ -114,6 +114,6 @@ func (s *server) tesJenisBel(w http.ResponseWriter, r *http.Request) {
 		s.tulisErrorData(w, err)
 		return
 	}
-	s.Pemutar.Play(player.Permintaan{Files: s.Penjadwal.FileUrutan(r.Context(), id)})
+	s.Pemutar.Play(player.Permintaan{Files: s.Penjadwal.FileUrutan(r.Context(), id), Prioritas: player.Tes})
 	tulisPesan(w, http.StatusAccepted, "suara diputar")
 }
