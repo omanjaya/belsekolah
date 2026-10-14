@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test'
-import { unik } from './bantu'
+import { jenisBelId, unik } from './bantu'
 
 interface ProfilApi { id: number; nama: string; jumlahBel: number }
 
@@ -14,6 +14,22 @@ async function profilDefaultApi(request: APIRequestContext): Promise<ProfilApi> 
   return p
 }
 
+/** Buat profil baru berisi 2 bel lewat API; mengembalikan profil dengan jumlahBel terbaru. */
+async function buatProfilIsi(request: APIRequestContext, nama: string): Promise<ProfilApi> {
+  const res = await request.post('/api/profil', { data: { nama } })
+  expect(res.ok()).toBeTruthy()
+  const p = (await daftarProfil(request)).find((x) => x.nama === nama)
+  if (!p) throw new Error('profil uji tidak ditemukan')
+  const jenis = await jenisBelId(request, 'Masuk')
+  for (const jam of ['07:00', '09:30']) {
+    const r = await request.post('/api/jadwal', { data: { profilId: p.id, hari: 1, jam, jenisBelId: jenis, label: `Uji ${jam}` } })
+    expect(r.ok()).toBeTruthy()
+  }
+  const isi = (await daftarProfil(request)).find((x) => x.id === p.id)!
+  expect(isi.jumlahBel).toBeGreaterThanOrEqual(2)
+  return isi
+}
+
 /** Hapus profil yang namanya diawali awalan (bersih-bersih tes). */
 async function hapusProfilBernama(request: APIRequestContext, ...nama: string[]) {
   for (const p of await daftarProfil(request)) {
@@ -21,11 +37,12 @@ async function hapusProfilBernama(request: APIRequestContext, ...nama: string[])
   }
 }
 
-test('duplikat profil default menghasilkan salinan dengan jumlah bel sama', async ({ page, request }) => {
-  const asal = await profilDefaultApi(request)
-  const salinan = `${asal.nama} (salinan)`
-  await hapusProfilBernama(request, salinan)
+test('duplikat profil menghasilkan salinan dengan jumlah bel sama', async ({ page, request }) => {
+  const namaAsal = unik('Asal Duplikat')
+  const salinan = `${namaAsal} (salinan)`
+  await hapusProfilBernama(request, namaAsal, salinan)
   try {
+    const asal = await buatProfilIsi(request, namaAsal)
     await page.goto('/profil')
     await page.getByRole('button', { name: `Duplikat ${asal.nama}`, exact: true }).click()
     const panel = page.getByRole('dialog')
@@ -35,16 +52,19 @@ test('duplikat profil default menghasilkan salinan dengan jumlah bel sama', asyn
     const baris = page.getByRole('row').filter({ hasText: salinan })
     await expect(baris).toBeVisible()
     await expect(baris.getByRole('cell').nth(1)).toHaveText(String(asal.jumlahBel))
+    const hasil = (await daftarProfil(request)).find((p) => p.nama === salinan)
+    expect(hasil?.jumlahBel).toBe(asal.jumlahBel)
   } finally {
-    await hapusProfilBernama(request, salinan)
+    await hapusProfilBernama(request, namaAsal, salinan)
   }
 })
 
 test('ekspor profil lalu impor file yang sama', async ({ page, request }, testInfo) => {
-  const asal = await profilDefaultApi(request)
-  const hasilImpor = `${asal.nama} (impor)`
-  await hapusProfilBernama(request, hasilImpor)
+  const namaAsal = unik('Asal Ekspor')
+  const hasilImpor = `${namaAsal} (impor)`
+  await hapusProfilBernama(request, namaAsal, hasilImpor)
   try {
+    const asal = await buatProfilIsi(request, namaAsal)
     await page.goto('/profil')
     const unduhan = page.waitForEvent('download')
     await page.getByRole('button', { name: `Ekspor ${asal.nama}`, exact: true }).click()
@@ -63,7 +83,7 @@ test('ekspor profil lalu impor file yang sama', async ({ page, request }, testIn
     expect(baru!.jumlahBel).toBe(asal.jumlahBel)
     expect(new URL(page.url()).searchParams.get('profil')).toBe(String(baru!.id))
   } finally {
-    await hapusProfilBernama(request, hasilImpor)
+    await hapusProfilBernama(request, namaAsal, hasilImpor)
   }
 })
 

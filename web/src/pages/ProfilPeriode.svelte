@@ -8,7 +8,6 @@
   import { pindah } from '../lib/router.svelte'
   import JudulHalaman from '../components/JudulHalaman.svelte'
   import Kartu from '../components/Kartu.svelte'
-  import Memuat from '../components/Memuat.svelte'
   import GalatMuat from '../components/GalatMuat.svelte'
   import PanelGeser from '../components/PanelGeser.svelte'
   import Tabel from '../components/Tabel.svelte'
@@ -156,11 +155,12 @@
     const input = e.currentTarget as HTMLInputElement
     const berkas = input.files?.[0]
     if (!berkas) return
-    const teks = await berkas.text()
-    input.value = ''
     try {
+      const teks = await berkas.text()
+      input.value = ''
       dataImpor = JSON.parse(teks) as FileJadwal
     } catch {
+      input.value = ''
       beriTahu('File bukan file jadwal', 'galat')
       return
     }
