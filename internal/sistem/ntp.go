@@ -1,6 +1,7 @@
 package sistem
 
 import (
+	"context"
 	"os/exec"
 	"strings"
 	"sync"
@@ -20,7 +21,9 @@ func CekNTP() func() *bool {
 			return nilai
 		}
 		kapan = time.Now()
-		out, err := exec.Command("timedatectl", "show", "-p", "NTPSynchronized", "--value").Output()
+		cx, batal := context.WithTimeout(context.Background(), 3*time.Second)
+		defer batal()
+		out, err := exec.CommandContext(cx, "timedatectl", "show", "-p", "NTPSynchronized", "--value").Output()
 		if err != nil {
 			nilai = nil
 			return nil

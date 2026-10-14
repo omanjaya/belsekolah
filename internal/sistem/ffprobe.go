@@ -5,14 +5,23 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os/exec"
 	"strconv"
+	"time"
 )
 
-var ErrBukanAudio = errors.New("file bukan audio yang valid")
+var (
+	ErrBukanAudio      = errors.New("file bukan audio yang valid")
+	ErrFfprobeTidakAda = errors.New("ffprobe belum terpasang")
+)
+
+const batasWaktuFfprobe = 15 * time.Second
 
 // DurasiAudio mengembalikan durasi file audio dalam milidetik menggunakan ffprobe.
 func DurasiAudio(ctx context.Context, path string) (int64, error) {
+	ctx, batal := context.WithTimeout(ctx, batasWaktuFfprobe)
+	defer batal()
 	out, err := exec.CommandContext(ctx, "ffprobe", "-v", "error",
 		"-show_entries", "format=duration:stream=codec_type",
 		"-of", "json", path).Output()
@@ -21,7 +30,10 @@ func DurasiAudio(ctx context.Context, path string) (int64, error) {
 		if errors.As(err, &exit) {
 			return 0, ErrBukanAudio
 		}
-		return 0, err // ffprobe tidak terpasang, dsb.
+		if errors.Is(err, exec.ErrNotFound) || errors.Is(err, fs.ErrNotExist) {
+			return 0, ErrFfprobeTidakAda
+		}
+		return 0, err
 	}
 	var hasil struct {
 		Streams []struct {

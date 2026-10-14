@@ -38,3 +38,10 @@ func TestCekNTPTidakPanik(t *testing.T) {
 	_ = cek() // nil di macOS (tanpa timedatectl), bool di Debian
 	_ = cek() // panggilan kedua memakai cache
 }
+
+func TestDurasiAudioFfprobeTidakAda(t *testing.T) {
+	t.Setenv("PATH", t.TempDir()) // folder kosong: ffprobe pasti tidak ditemukan
+	if _, err := DurasiAudio(context.Background(), "apa-saja.mp3"); !errors.Is(err, ErrFfprobeTidakAda) {
+		t.Errorf("err = %v, mau ErrFfprobeTidakAda", err)
+	}
+}
