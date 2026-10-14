@@ -8,9 +8,16 @@ func (s *server) listProfil(w http.ResponseWriter, r *http.Request) {
 		s.tulisErrorData(w, err)
 		return
 	}
+	jumlah, err := s.Store.JumlahBelPerProfil(r.Context())
+	if err != nil {
+		s.tulisErrorData(w, err)
+		return
+	}
 	out := make([]profilDTO, 0, len(ps))
 	for _, p := range ps {
-		out = append(out, keProfilDTO(p))
+		d := keProfilDTO(p)
+		d.JumlahBel = jumlah[p.ID]
+		out = append(out, d)
 	}
 	tulisJSON(w, http.StatusOK, out)
 }
@@ -21,7 +28,14 @@ func (s *server) kirimProfil(w http.ResponseWriter, r *http.Request, id int64, k
 		s.tulisErrorData(w, err)
 		return
 	}
-	tulisJSON(w, kode, keProfilDTO(p))
+	jumlah, err := s.Store.JumlahBelPerProfil(r.Context())
+	if err != nil {
+		s.tulisErrorData(w, err)
+		return
+	}
+	d := keProfilDTO(p)
+	d.JumlahBel = jumlah[p.ID]
+	tulisJSON(w, kode, d)
 }
 
 func (s *server) buatProfil(w http.ResponseWriter, r *http.Request) {

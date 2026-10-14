@@ -8,6 +8,18 @@ func (s *server) daftarRuteData(rute func(pola string, h http.HandlerFunc)) {
 	rute("POST /api/profil", s.buatProfil)
 	rute("PUT /api/profil/{id}", s.ubahProfil)
 	rute("DELETE /api/profil/{id}", s.hapusProfil)
+	rute("POST /api/profil/{id}/duplikat", s.duplikatProfil)
+	rute("GET /api/profil/{id}/ekspor", s.eksporProfil)
+	rute("POST /api/impor/periksa", s.periksaImpor)
+	rute("POST /api/impor", s.impor)
+
+	rute("GET /api/template", s.listTemplate)
+	rute("POST /api/template", s.buatTemplate)
+	rute("POST /api/template/buat", s.buatDariParameter)
+	rute("GET /api/template/{id}", s.ambilTemplate)
+	rute("PUT /api/template/{id}", s.ubahTemplate)
+	rute("DELETE /api/template/{id}", s.hapusTemplate)
+	rute("GET /api/template/{id}/ekspor", s.eksporTemplate)
 
 	rute("GET /api/jadwal", s.listJadwal)
 	rute("POST /api/jadwal", s.buatJadwal)
