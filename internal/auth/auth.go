@@ -119,39 +119,53 @@ func (a *Auth) cocok(ctx context.Context, pw string) (bool, error) {
 
 // Login memeriksa password dan membuat sesi baru. Lima kegagalan dari IP yang sama mengunci IP itu 5 menit.
 func (a *Auth) Login(ctx context.Context, ip, password string) (string, error) {
+	// Bagian 1: cek kunci dan cadangkan satu percobaan sebelum bcrypt,
+	// agar permintaan paralel tidak lolos semua sebelum kegagalan tercatat.
 	a.mu.Lock()
 	c := a.gagal[ip]
-	terkunci := c != nil && a.now().Before(c.kunciSampai)
-	a.mu.Unlock()
-	if terkunci {
+	if c == nil {
+		c = &catatanGagal{}
+		a.gagal[ip] = c
+	}
+	if a.now().Before(c.kunciSampai) {
+		a.mu.Unlock()
 		return "", ErrTerkunci
 	}
+	c.gagal++
+	if c.gagal > BatasGagal {
+		c.gagal = 0
+		c.kunciSampai = a.now().Add(LamaKunci)
+		a.mu.Unlock()
+		return "", ErrTerkunci
+	}
+	a.mu.Unlock()
 
 	ok, err := a.cocok(ctx, password)
-	if err != nil {
-		return "", err
-	}
 
+	// Bagian 2: selesaikan percobaan.
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if !ok {
-		c := a.gagal[ip]
-		if c == nil {
-			c = &catatanGagal{}
-			a.gagal[ip] = c
+	if err != nil {
+		if c.gagal > 0 {
+			c.gagal-- // kesalahan internal bukan percobaan salah: kembalikan cadangan
 		}
-		c.gagal++
-		if c.gagal >= BatasGagal {
-			c.gagal = 0
-			c.kunciSampai = a.now().Add(LamaKunci)
+		return "", err
+	}
+	if ok {
+		if a.now().Before(c.kunciSampai) {
 			return "", ErrTerkunci
 		}
-		return "", ErrPasswordSalah
+		delete(a.gagal, ip) // mengembalikan cadangan percobaan
+		token := tokenAcak()
+		a.sesi[token] = a.now()
+		return token, nil
 	}
-	delete(a.gagal, ip)
-	token := tokenAcak()
-	a.sesi[token] = a.now()
-	return token, nil
+	if c.gagal >= BatasGagal {
+		c.gagal = 0
+		c.kunciSampai = a.now().Add(LamaKunci)
+		return "", ErrTerkunci
+	}
+	return "", ErrPasswordSalah
 }
 
 func (a *Auth) Logout(token string) {

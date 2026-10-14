@@ -184,3 +184,36 @@ func TestBelumAdaPassword(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestLoginParalelTidakMenembusKunci(t *testing.T) {
+	a, _, pw := siapkan(t)
+	const n = 20
+	hasil := make(chan error, n)
+	var wg sync.WaitGroup
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := a.Login(ctx, "10.0.0.5", "salah")
+			hasil <- err
+		}()
+	}
+	wg.Wait()
+	close(hasil)
+	salah := 0
+	for err := range hasil {
+		switch {
+		case errors.Is(err, ErrPasswordSalah):
+			salah++
+		case errors.Is(err, ErrTerkunci):
+		default:
+			t.Fatalf("error tak terduga: %v", err)
+		}
+	}
+	if salah > BatasGagal {
+		t.Errorf("ErrPasswordSalah = %d kali, maksimal %d", salah, BatasGagal)
+	}
+	if _, err := a.Login(ctx, "10.0.0.5", pw); !errors.Is(err, ErrTerkunci) {
+		t.Fatalf("password benar setelah terkunci: %v, mau ErrTerkunci", err)
+	}
+}
