@@ -28,6 +28,15 @@
     tautan(e)
   }
 
+  // Tautan di sidebar/laci: di HP laci tertutup dan fokus kembali ke ☰ (juga bila rute sama).
+  function klikLaci(e: MouseEvent) {
+    tautan(e)
+    if (laciBuka) {
+      laciBuka = false
+      tombolMenu?.focus()
+    }
+  }
+
   function aturCiut() {
     ciut = !ciut
     tulis('sidebarCiut', ciut)
@@ -122,7 +131,7 @@
           <li>
             <a
               href={m.path}
-              onclick={tautan}
+              onclick={klikLaci}
               title={ciut ? nama : undefined}
               aria-current={rute.path === m.path ? 'page' : undefined}
               class="flex min-h-11 items-center gap-3 rounded-xl px-3 font-medium {ciut ? 'md:justify-center md:px-0' : ''} {rute.path === m.path ? 'bg-blue-700 text-white' : 'text-slate-300 hover:bg-slate-800'}"
@@ -172,7 +181,7 @@
         onclick={keluar}
         disabled={keluarSibuk}
         aria-label="Keluar"
-        class="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl px-2 font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 md:px-3"
+        class="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-xl px-2 font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 md:px-3"
       >
         <LogOut class="size-5" /><span class="max-md:sr-only">Keluar</span>
       </button>

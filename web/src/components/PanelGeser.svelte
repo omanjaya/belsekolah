@@ -33,8 +33,14 @@
   }
 
   // Klik pada latar (di luar isi panel) mengenai <dialog> itu sendiri.
+  // Hanya menutup bila tekan dan lepas keduanya di latar (seret seleksi teks yang berakhir di latar tidak menutup).
+  let tekanDiLatar = false
+  function tekanLatar(e: MouseEvent) {
+    tekanDiLatar = e.target === dialog
+  }
   function klikLatar(e: MouseEvent) {
-    if (e.target === dialog) buka = false
+    if (e.target === dialog && tekanDiLatar) buka = false
+    tekanDiLatar = false
   }
 </script>
 
@@ -42,7 +48,9 @@
 <dialog
   bind:this={dialog}
   onclose={tertutup}
+  onmousedown={tekanLatar}
   onclick={klikLatar}
+  aria-modal="true"
   aria-labelledby="{uid}-judul"
   class="panel-geser m-0 ml-auto h-dvh max-h-none w-full max-w-none bg-white p-0 text-slate-900 shadow-xl backdrop:bg-slate-900/40 {lebar === 'lg' ? 'md:w-[640px]' : 'md:w-[440px]'}"
 >

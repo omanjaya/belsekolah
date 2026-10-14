@@ -56,6 +56,18 @@ test('HP: laci menu dibuka dengan tombol, Escape menutup, tautan pindah halaman'
   await expect(page.getByRole('navigation', { name: 'Menu utama' }).first().getByRole('link', { name: 'Pengaturan' })).toBeHidden()
 })
 
+test('HP: klik tautan halaman saat ini menutup laci dan fokus kembali ke tombol menu', async ({ page }) => {
+  await page.goto('/riwayat')
+  const buka = page.getByRole('button', { name: 'Buka menu' })
+  await buka.click()
+  const laci = page.locator('aside')
+  await laci.getByRole('link', { name: 'Pustaka Suara' }).waitFor()
+  await laci.getByRole('link', { name: 'Riwayat' }).click()
+  await expect(page).toHaveURL(/\/riwayat$/)
+  await expect(laci).toBeHidden()
+  await expect(buka).toBeFocused()
+})
+
 test('tidak ada gulir horizontal di 375px pada setiap rute menu', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 800 })
   for (const rute of RUTE) {
