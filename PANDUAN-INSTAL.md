@@ -111,7 +111,7 @@ Menu lain: **Suara** untuk suara bel (unggah file atau buat dari teks), **Riwaya
 - Backup manual dan pemulihan ada di **Pengaturan → Backup & Restore**:
   - **Unduh backup** menyimpan file `.zip` berisi semua data.
   - **Pulihkan dari backup**: pilih file `.zip` pada **File backup (.zip)**, lalu tekan **Pulihkan dari backup** dan konfirmasi.
-- Pemulihan mengganti semua data, termasuk password admin: password yang berlaku adalah password saat backup itu dibuat. Semua sesi login berakhir. Aplikasi memulai ulang dan halaman dimuat ulang sendiri (tunggu hingga 2 menit), lalu Anda login lagi dengan password yang berlaku saat backup dibuat. Jika lupa password itu, pakai perintah reset di bagian "Lupa password".
+- Pemulihan mengganti semua data, termasuk password admin: password yang berlaku adalah password saat backup itu dibuat. Zona waktu yang tersimpan di backup juga ikut dikembalikan. Semua sesi login berakhir. Aplikasi memulai ulang dan halaman dimuat ulang sendiri (tunggu hingga 2 menit), lalu Anda login lagi dengan password yang berlaku saat backup dibuat. Jika lupa password itu, pakai perintah reset di bagian "Lupa password".
 - Unduh satu backup setiap awal semester dan simpan di luar mini PC (flashdisk atau komputer lain). Jika SSD rusak, backup di dalam mini PC ikut hilang.
 
 ## 10. Pembaruan aplikasi

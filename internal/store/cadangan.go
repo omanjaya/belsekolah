@@ -99,6 +99,21 @@ func (s *Store) EksporProfil(ctx context.Context, id int64) (formatjadwal.Data, 
 		}
 		d.Jadwal = append(d.Jadwal, formatjadwal.Bel{Hari: b.Hari, Jam: b.Jam, JenisBel: j.Nama, Label: b.Label})
 	}
+	// File hasil ekspor harus bisa diimpor kembali; periksa dengan aturan yang sama.
+	if len(d.Jadwal) > formatjadwal.MaksBel {
+		return formatjadwal.Data{}, validasi("profil melebihi %d bel, tidak bisa diekspor", formatjadwal.MaksBel)
+	}
+	asal := make(map[string]string, len(d.JenisBel))
+	for _, j := range d.JenisBel {
+		k := kunciNama(j.Nama)
+		if lain, ada := asal[k]; ada {
+			return formatjadwal.Data{}, validasi("jenis bel %q dan %q hanya beda huruf besar/kecil; ganti salah satu nama dahulu", lain, j.Nama)
+		}
+		asal[k] = j.Nama
+	}
+	if err := d.Validasi(); err != nil {
+		return formatjadwal.Data{}, err
+	}
 	return d, nil
 }
 

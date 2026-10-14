@@ -136,7 +136,9 @@ func TestZona_DitolakSaatRestoreProses(t *testing.T) {
 		<-lanjut
 		return errors.New("batal")
 	}
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		resp := unggahRestore(t, l, c, []byte("PK"))
 		resp.Body.Close()
 	}()
@@ -147,6 +149,7 @@ func TestZona_DitolakSaatRestoreProses(t *testing.T) {
 	harapKode(t, resp, http.StatusServiceUnavailable)
 	resp.Body.Close()
 	close(lanjut)
+	<-done
 	if z, _ := l.st.ZonaWaktu(ctx); z != "" {
 		t.Fatalf("zona tidak boleh tersimpan saat restore berlangsung, tersimpan %q", z)
 	}

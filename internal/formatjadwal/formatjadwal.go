@@ -67,6 +67,12 @@ func Baca(b []byte) (Data, error) {
 	if d.Versi != Versi {
 		return Data{}, salah("versi file jadwal %d tidak didukung (aplikasi ini memakai versi %d)", d.Versi, Versi)
 	}
+	if d.Jadwal == nil {
+		d.Jadwal = []Bel{}
+	}
+	if d.JenisBel == nil {
+		d.JenisBel = []JenisBel{}
+	}
 	if err := d.Validasi(); err != nil {
 		return Data{}, err
 	}

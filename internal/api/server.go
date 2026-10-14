@@ -18,6 +18,7 @@ import (
 	"belsekolah/internal/player"
 	"belsekolah/internal/scheduler"
 	"belsekolah/internal/store"
+	"belsekolah/internal/zona"
 )
 
 type Penjadwal interface {
@@ -90,6 +91,12 @@ func idBoot() string {
 const namaCookie = "sesi"
 
 func New(d Deps) http.Handler {
+	if d.Zona == "" {
+		d.Zona = time.Local.String()
+		if d.Zona == "Local" {
+			d.Zona = zona.Bawaan
+		}
+	}
 	s := &server{Deps: d, boot: idBoot()}
 	mux := http.NewServeMux()
 

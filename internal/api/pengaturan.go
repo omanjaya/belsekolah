@@ -50,7 +50,9 @@ func (s *server) ubahPengaturan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var ianaBaru string
-	if p.ZonaWaktu != "" {
+	// Kode yang sama dengan zona aktif (WIB/WITA/WIT atau nama IANA di luar ketiganya,
+	// seperti yang dikembalikan GET) berarti tidak berubah.
+	if p.ZonaWaktu != "" && p.ZonaWaktu != zona.Kode(s.zonaAktif()) && p.ZonaWaktu != s.zonaAktif() {
 		iana, ok := zona.IANA(p.ZonaWaktu)
 		if !ok {
 			tulisError(w, http.StatusBadRequest, "zona waktu harus WIB, WITA, atau WIT")
@@ -81,20 +83,22 @@ func (s *server) ubahPengaturan(w http.ResponseWriter, r *http.Request) {
 		}
 		s.akanMulaiUlang.Store(true)
 		s.Log.Warn("zona waktu diganti, aplikasi akan dimulai ulang", "zona", ianaBaru)
-		out, err := s.bacaPengaturan(r)
-		if err != nil {
-			s.tulisErrorData(w, err)
-			return
-		}
-		out.ZonaWaktu = zona.Kode(ianaBaru)
-		out.MulaiUlang = true
-		tulisJSON(w, http.StatusOK, out)
+		// Jadwalkan mulai ulang sebelum membaca apa pun agar kegagalan baca
+		// tidak membuat penulisan ditolak 503 selamanya.
 		if s.MulaiUlang != nil {
 			go func() {
 				time.Sleep(500 * time.Millisecond) // beri waktu respons terkirim
 				s.MulaiUlang()
 			}()
 		}
+		out, err := s.bacaPengaturan(r)
+		if err != nil {
+			s.Log.Error("gagal membaca pengaturan setelah ganti zona", "err", err)
+			out = pengaturanDTO{Volume: p.Volume, ProfilDefaultID: p.ProfilDefaultID}
+		}
+		out.ZonaWaktu = zona.Kode(ianaBaru)
+		out.MulaiUlang = true
+		tulisJSON(w, http.StatusOK, out)
 		return
 	}
 	s.ambilPengaturan(w, r)
