@@ -86,6 +86,14 @@ func (s *Store) EksporProfil(ctx context.Context, id int64) (formatjadwal.Data, 
 	for _, j := range jenis {
 		peta[j.ID] = j
 	}
+	audio, err := s.ListAudio(ctx)
+	if err != nil {
+		return formatjadwal.Data{}, err
+	}
+	namaAudio := make(map[int64]string, len(audio))
+	for _, a := range audio {
+		namaAudio[a.ID] = a.Nama
+	}
 	d := formatjadwal.Baru(p.Nama)
 	masuk := make(map[int64]bool)
 	for _, b := range jadwal {
@@ -97,7 +105,7 @@ func (s *Store) EksporProfil(ctx context.Context, id int64) (formatjadwal.Data, 
 			masuk[j.ID] = true
 			d.JenisBel = append(d.JenisBel, formatjadwal.JenisBel{Nama: j.Nama, Warna: j.Warna})
 		}
-		d.Jadwal = append(d.Jadwal, formatjadwal.Bel{Hari: b.Hari, Jam: b.Jam, JenisBel: j.Nama, Label: b.Label})
+		d.Jadwal = append(d.Jadwal, formatjadwal.Bel{Hari: b.Hari, Jam: b.Jam, JenisBel: j.Nama, Label: b.Label, Pengumuman: namaAudio[b.PengumumanID]})
 	}
 	// File hasil ekspor harus bisa diimpor kembali; periksa dengan aturan yang sama.
 	if len(d.Jadwal) > formatjadwal.MaksBel {
@@ -196,6 +204,10 @@ func (s *Store) ImporJadwal(ctx context.Context, d formatjadwal.Data, nama strin
 	if err != nil {
 		return 0, err
 	}
+	suaraPeng, err := s.bacaPetaSuara(ctx)
+	if err != nil {
+		return 0, err
+	}
 	perluSuara, err := peta.periksaPemetaan(d, pemetaan)
 	if err != nil {
 		return 0, err
@@ -225,9 +237,10 @@ func (s *Store) ImporJadwal(ctx context.Context, d formatjadwal.Data, nama strin
 		return 0, err
 	}
 	for _, b := range d.Jadwal {
+		peng, _ := suaraPeng.resolusi(b.Pengumuman, b.Label)
 		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO jadwal (profil_id, hari, jam, jenis_bel_id, label) VALUES (?, ?, ?, ?, ?)`,
-			profil, b.Hari, b.Jam, idJenis[kunciNama(b.JenisBel)], strings.TrimSpace(b.Label)); err != nil {
+			`INSERT INTO jadwal (profil_id, hari, jam, jenis_bel_id, label, pengumuman_audio_id) VALUES (?, ?, ?, ?, ?, ?)`,
+			profil, b.Hari, b.Jam, idJenis[kunciNama(b.JenisBel)], strings.TrimSpace(b.Label), nullID(peng)); err != nil {
 			return 0, terjemahkan(err, errRefJadwal)
 		}
 	}
