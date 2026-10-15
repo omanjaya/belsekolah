@@ -52,21 +52,24 @@
     const saya = ++urutan
     galat = ''
     memeriksa = true
+    // Dari langkah Sumber, pemetaan lama (sumber sebelumnya) tidak berlaku.
+    const dasar = dariPemetaan ? pilihan : {}
     try {
       const r = await api.post<HasilPeriksaGabung>(`/profil/${profil.id}/gabung/periksa`, {
         data,
-        pemetaan: kePemetaan(pilihan),
+        pemetaan: kePemetaan(dasar),
       })
       if (saya !== urutan) return
       hasil = r
       const takDikenal = r.jenisBelTakDikenal ?? []
-      const belumDipetakan = takDikenal.filter((n) => !(n in pilihan))
+      const belumDipetakan = takDikenal.filter((n) => !(n in dasar))
       if (!dariPemetaan && belumDipetakan.length > 0) {
-        const p = { ...pilihan }
+        const p: Record<string, string> = { ...dasar }
         for (const n of takDikenal) if (!(n in p)) p[n] = BARU_JENIS
         pilihan = p
         langkah = 'pemetaan'
       } else {
+        if (!dariPemetaan) pilihan = {}
         timpa = new Set()
         langkah = 'pratinjau'
       }
@@ -79,6 +82,9 @@
   }
 
   function kembali() {
+    // Buang respons periksa yang masih berjalan.
+    urutan++
+    memeriksa = false
     galat = ''
     if (langkah === 'pratinjau') langkah = hasil && hasil.jenisBelTakDikenal?.length ? 'pemetaan' : 'sumber'
     else langkah = 'sumber'
@@ -111,9 +117,11 @@
 
 <PanelGeser bind:buka lebar="lg" judul="Tambah banyak ke profil {profil.nama}">
   <div class="flex flex-col gap-4">
-    {#if langkah === 'sumber'}
+    <!-- Tetap ter-mount (hanya disembunyikan) agar isian tidak hilang saat Kembali. -->
+    <div hidden={langkah !== 'sumber'}>
       <SumberTambahBanyak profilId={profil.id} {jenisBel} bind:data bind:galat={galatSumber} />
-    {:else if langkah === 'pemetaan' && hasil}
+    </div>
+    {#if langkah === 'pemetaan' && hasil}
       <PemetaanJenis nama={hasil.jenisBelTakDikenal} {jenisBel} bind:pilihan awalanId="tb-peta" />
     {:else if langkah === 'pratinjau' && hasil}
       <PratinjauGabung {hasil} bind:timpa />
@@ -132,10 +140,10 @@
       <Tombol varian="kedua" onclick={() => (buka = false)}>Batal</Tombol>
       <Tombol onclick={() => periksa(false)} sibuk={memeriksa} disabled={!data || !!galatSumber}>Periksa</Tombol>
     {:else if langkah === 'pemetaan'}
-      <Tombol varian="kedua" onclick={kembali}>Kembali</Tombol>
+      <Tombol varian="kedua" onclick={kembali} disabled={memeriksa}>Kembali</Tombol>
       <Tombol onclick={() => periksa(true)} sibuk={memeriksa}>Lanjut</Tombol>
     {:else}
-      <Tombol varian="kedua" onclick={kembali}>Kembali</Tombol>
+      <Tombol varian="kedua" onclick={kembali} disabled={memeriksa}>Kembali</Tombol>
       <Tombol onclick={gabungkan} sibuk={menggabung} disabled={jumlahPerubahan === 0}>Gabungkan ({jumlahPerubahan} perubahan)</Tombol>
     {/if}
   {/snippet}

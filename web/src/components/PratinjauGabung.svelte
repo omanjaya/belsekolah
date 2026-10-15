@@ -28,6 +28,8 @@
   const bentrok = $derived(hasil.baris.filter((b) => b.status === 'bentrok'))
   const semuaTimpa = $derived(bentrok.length > 0 && bentrok.every((b) => timpa.has(kunci(b))))
 
+  const tidakAdaTimpa = $derived(bentrok.every((b) => !timpa.has(kunci(b))))
+
   const tampil = $derived(hasil.baris.filter((b) => tampilkanKembar || b.status !== 'kembar'))
   const perHari = $derived(
     [...new Set(tampil.map((b) => b.hari))]
@@ -65,7 +67,7 @@
       <p class="text-sm font-medium text-slate-700" id="{uid}-bentrok">Bel yang bentrok</p>
       <div role="radiogroup" aria-labelledby="{uid}-bentrok" class="flex flex-col gap-1">
         <label class="flex min-h-11 items-center gap-2">
-          <input type="radio" class="size-5 accent-blue-700" name="{uid}-aksi" checked={!semuaTimpa} onchange={() => aturSemua(false)} />
+          <input type="radio" class="size-5 accent-blue-700" name="{uid}-aksi" checked={bentrok.length > 0 && tidakAdaTimpa} onchange={() => aturSemua(false)} />
           Pertahankan yang lama
         </label>
         <label class="flex min-h-11 items-center gap-2">

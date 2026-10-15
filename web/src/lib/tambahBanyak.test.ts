@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { hariBerisi, jamGanda, keFileJadwal, kePemetaan, kunciSlot, normalJam, saringHari, uraiTempel } from './tambahBanyak'
+import { hariBerisi,
+  hariDipilih, jamGanda, keFileJadwal, kePemetaan, kunciSlot, normalJam, saringHari, uraiTempel } from './tambahBanyak'
 
 describe('normalJam', () => {
   it('menerima titik, titik dua, dan satu digit jam', () => {
@@ -72,6 +73,15 @@ describe('saringHari & hariBerisi', () => {
     const s = saringHari(d, [5, 1])
     expect(s.jadwal.map((b) => b.hari)).toEqual([1, 5])
     expect(d.jadwal).toHaveLength(3)
+  })
+})
+
+describe('hariDipilih', () => {
+  it('mengiriskan hari tersedia dengan yang sengaja dimatikan', () => {
+    expect(hariDipilih([1, 2, 3], [1])).toEqual([2, 3])
+  })
+  it('hari yang hilang dari sumber diabaikan, hari baru tercentang', () => {
+    expect(hariDipilih([2, 3, 4], [1])).toEqual([2, 3, 4])
   })
 })
 

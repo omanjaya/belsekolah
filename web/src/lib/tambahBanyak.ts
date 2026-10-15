@@ -90,6 +90,11 @@ export function hariBerisi(d: FileJadwal): number[] {
   return [...new Set(d.jadwal.map((b) => b.hari))].sort((a, b) => a - b)
 }
 
+/** Hari tersedia yang tidak sengaja dimatikan pengguna (irisan; hari baru otomatis tercentang). */
+export function hariDipilih(tersedia: number[], dimatikan: number[]): number[] {
+  return tersedia.filter((h) => !dimatikan.includes(h))
+}
+
 /** Pilihan <select> pemetaan ('baru' | id sebagai string) → bentuk API. */
 export function kePemetaan(pilihan: Record<string, string>): Pemetaan {
   const out: Pemetaan = {}

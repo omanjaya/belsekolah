@@ -4,6 +4,7 @@
   import { NAMA_HARI } from '../lib/format'
   import {
     hariBerisi,
+    hariDipilih,
     jamGanda,
     keFileJadwal,
     saringHari,
@@ -65,7 +66,8 @@
       const sisa = isian.filter((b) => b.jam || b.label)
       isian = [...sisa, ...baris.map((b) => ({ ...b, k: kunciBerikut++ }))]
     }
-    if (g.length === 0) tempel = ''
+    // Sisakan hanya baris yang galat agar baris valid tidak ditambahkan dua kali.
+    tempel = g.map((x) => x.teks).join('\n')
   }
   const hapus = (k: number) => (isian = isian.filter((b) => b.k !== k))
   const tambahBaris = () => (isian = [...isian, barisKosong(jenisBawaan)])
@@ -124,6 +126,7 @@
   async function pilihTemplate(id: string) {
     templateId = id
     sumberTemplate = null
+    setelUlangHari(`template:${id}`)
     const saya = ++urutanTemplate
     galatMuatTemplate = ''
     if (!id) return
@@ -152,6 +155,7 @@
   async function pilihProfil(id: string) {
     profilLain = id
     sumberFile = null
+    setelUlangHari(`profil:${id}`)
     galatFile = ''
     const saya = ++urutanFile
     galatMuatFile = ''
@@ -172,6 +176,8 @@
     const saya = ++urutanFile
     profilLain = ''
     sumberFile = null
+    nomorBerkas++
+    setelUlangHari(`berkas:${nomorBerkas}`)
     galatFile = ''
     galatMuatFile = ''
     try {
@@ -189,10 +195,13 @@
 
   // Daftar template / profil dimuat saat tab-nya pertama dibuka.
   let templateDimuat = false
+  // Panel Template tetap ter-mount setelah dibuka agar parameter pembuat tidak hilang saat pindah tab.
+  let templateDibuka = $state(false)
   let profilDimuat = false
   $effect(() => {
     if (tab === 'template' && !templateDimuat) {
       templateDimuat = true
+      templateDibuka = true
       void muatDaftarTemplate()
     }
     if (tab === 'file' && !profilDimuat) {
@@ -202,15 +211,43 @@
   })
 
   // --- Ambil hari (Template dan File/profil lain) ---
-  const sumberAktif = $derived<FileJadwal | null>(
-    tab === 'template' ? (modeTemplate === 'pembuat' ? hasilPembuat : sumberTemplate) : tab === 'file' ? sumberFile : null,
+  // Hari yang SENGAJA tidak dicentang, per identitas sumber. Hanya berganti
+  // sumber (template/profil/file/mode lain) yang menyetel ulang ke semua hari;
+  // hitung ulang pembuat tidak.
+  let dimatikan = $state<Record<string, number[]>>({})
+  let nomorBerkas = $state(0)
+  const kunciSumber = $derived(
+    tab === 'template'
+      ? modeTemplate === 'pembuat'
+        ? 'pembuat'
+        : `template:${templateId}`
+      : tab === 'file'
+        ? profilLain
+          ? `profil:${profilLain}`
+          : `berkas:${nomorBerkas}`
+        : '',
   )
-  const hariTersedia = $derived(sumberAktif ? hariBerisi(sumberAktif) : [])
-  let hariTerpilih = $state<number[]>([])
-  $effect(() => {
-    const s = sumberAktif
-    untrack(() => (hariTerpilih = s ? hariBerisi(s) : []))
-  })
+  const setelUlangHari = (kunci: string) => {
+    const { [kunci]: _, ...sisa } = dimatikan
+    dimatikan = sisa
+  }
+  const sumberMentah = $derived<FileJadwal | null>(
+    tab === 'template'
+      ? modeTemplate === 'pembuat'
+        ? galatPembuat
+          ? null
+          : hasilPembuat
+        : sumberTemplate
+      : tab === 'file'
+        ? sumberFile
+        : null,
+  )
+  // Selama pembuat menghitung ulang, hasil lama tidak boleh diperiksa.
+  const sumberAktif = $derived<FileJadwal | null>(
+    tab === 'template' && modeTemplate === 'pembuat' && menghitung ? null : sumberMentah,
+  )
+  const hariTersedia = $derived(sumberMentah ? hariBerisi(sumberMentah) : [])
+  const hariTerpilih = $derived(hariDipilih(hariTersedia, dimatikan[kunciSumber] ?? []))
   const dataSumber = $derived.by(() => {
     if (!sumberAktif) return null
     const d = saringHari(sumberAktif, hariTerpilih)
@@ -338,8 +375,10 @@
         </div>
       </fieldset>
     </div>
-  {:else if tab === 'template'}
-    <div role="tabpanel" id="tb-panel-template" aria-labelledby="tb-tab-template" class="flex flex-col gap-4">
+  {/if}
+
+  {#if templateDibuka}
+    <div role="tabpanel" id="tb-panel-template" aria-labelledby="tb-tab-template" hidden={tab !== 'template'} class="flex flex-col gap-4">
       <div class="flex gap-2">
         <Tombol varian={modeTemplate === 'pembuat' ? 'utama' : 'kedua'} aria-pressed={modeTemplate === 'pembuat'} onclick={() => (modeTemplate = 'pembuat')}>
           Pembuat jadwal
@@ -350,6 +389,12 @@
       </div>
       {#if modeTemplate === 'pembuat'}
         <FormPembuat bind:hasil={hasilPembuat} bind:menghitung bind:galat={galatPembuat} bind:hariSekolah />
+        {#if menghitung}
+          <p class="text-sm text-slate-600" role="status">Menghitung…</p>
+        {/if}
+        {#if galatPembuat}
+          <p class="text-sm text-red-700" role="alert">{galatPembuat}</p>
+        {/if}
       {:else}
         <Medan label="Template saya" untuk="tb-template">
           <select id="tb-template" class={kelasInput} value={templateId} onchange={(e) => pilihTemplate(e.currentTarget.value)}>
@@ -364,7 +409,9 @@
         {/if}
       {/if}
     </div>
-  {:else}
+  {/if}
+
+  {#if tab === 'file'}
     <div role="tabpanel" id="tb-panel-file" aria-labelledby="tb-tab-file" class="flex flex-col gap-4">
       <Medan label="File jadwal (.json)" untuk="tb-berkas">
         <input id="tb-berkas" type="file" accept=".json,application/json" class={kelasInput} onchange={pilihBerkas} />
@@ -400,7 +447,7 @@
               type="checkbox"
               class={kelasCentang}
               checked={hariTerpilih.includes(h)}
-              onchange={(e) => (hariTerpilih = alihHari(h, e.currentTarget.checked, hariTerpilih))}
+              onchange={(e) => (dimatikan = { ...dimatikan, [kunciSumber]: alihHari(h, !e.currentTarget.checked, dimatikan[kunciSumber] ?? []) })}
             />
             {NAMA_HARI[h]}
           </label>

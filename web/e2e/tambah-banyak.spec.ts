@@ -122,7 +122,8 @@ test('jenis tak dikenal dipetakan ke jenis yang ada', async ({ page, request }) 
 
     const peta = panel.locator('#tb-peta-0')
     await expect(peta).toBeVisible()
-    await expect(panel.getByText(jenisBaru, { exact: true })).toBeVisible()
+    // Langkah Sumber tetap ter-mount (tersembunyi), jadi batasi ke label pemetaan.
+    await expect(panel.locator('label[for="tb-peta-0"]')).toHaveText(jenisBaru)
     await expect(peta.locator('option:checked')).toHaveText('Buat jenis bel baru')
     await peta.selectOption({ label: 'Masuk' })
     await panel.getByRole('button', { name: 'Lanjut', exact: true }).click()
@@ -135,6 +136,62 @@ test('jenis tak dikenal dipetakan ke jenis yang ada', async ({ page, request }) 
     expect(bel.find((b) => b.hari === 1 && b.jam === '09:00')?.jenisBelId).toBe(masuk)
     const jenis = (await (await request.get('/api/jenis-bel')).json()) as { nama: string }[]
     expect(jenis.some((j) => j.nama === jenisBaru)).toBeFalsy()
+  } finally {
+    await hapusProfil(request, id)
+  }
+})
+
+test('pembuat: parameter tidak valid menampilkan galat dan Periksa nonaktif', async ({ page, request }) => {
+  const id = await buatProfil(request, unik('TB Galat'))
+  try {
+    await page.goto(`/jadwal?profil=${id}`)
+    await expect(page.locator('#jadwal-profil')).toHaveValue(String(id))
+    await page.getByRole('button', { name: 'Tambah banyak', exact: true }).click()
+    const panel = page.getByRole('dialog')
+    await panel.getByRole('tab', { name: 'Template' }).click()
+    await expect(panel.getByTestId('ringkasan-sumber')).toContainText(/\d+ bel dari/)
+    await panel.locator('#pb-jp').fill('')
+    await expect(panel.getByRole('alert').filter({ hasText: /\S/ })).toBeVisible()
+    await expect(panel.getByTestId('ringkasan-sumber')).toHaveText('Belum ada bel')
+    await expect(panel.getByRole('button', { name: 'Periksa', exact: true })).toBeDisabled()
+  } finally {
+    await hapusProfil(request, id)
+  }
+})
+
+test('Kembali dari pratinjau mempertahankan isian tab Ketik', async ({ page, request }) => {
+  const id = await buatProfil(request, unik('TB Kembali'))
+  try {
+    const panel = await tempelDanPeriksa(page, id)
+    await expect(panel.getByRole('button', { name: 'Gabungkan (2 perubahan)' })).toBeVisible()
+    await panel.getByRole('button', { name: 'Kembali', exact: true }).click()
+    await expect(panel.getByLabel('Jam baris 1')).toHaveValue('07:00')
+    await expect(panel.getByLabel('Keterangan baris 2')).toHaveValue('Sholat Dhuha')
+    await expect(panel.getByLabel('Senin', { exact: true })).toBeChecked()
+    await expect(panel.getByLabel('Selasa', { exact: true })).not.toBeChecked()
+    await expect(panel.getByRole('button', { name: 'Periksa', exact: true })).toBeEnabled()
+  } finally {
+    await hapusProfil(request, id)
+  }
+})
+
+test('radio global mereset pilihan per baris yang campuran', async ({ page, request }) => {
+  const id = await buatProfil(request, unik('TB Radio'))
+  try {
+    await tambahBel(request, id, 1, '07:00', 'Masuk')
+    await tambahBel(request, id, 1, '07:15', 'Masuk')
+    const panel = await tempelDanPeriksa(page, id)
+    const a = panel.getByLabel('Tindakan Senin 07:00')
+    const b = panel.getByLabel('Tindakan Senin 07:15')
+    await a.selectOption('timpa')
+    await expect(panel.getByRole('radio', { name: 'Pertahankan yang lama' })).not.toBeChecked()
+    await panel.getByRole('radio', { name: 'Pertahankan yang lama' }).click()
+    await expect(a).toHaveValue('pertahankan')
+    await expect(b).toHaveValue('pertahankan')
+    await b.selectOption('timpa')
+    await panel.getByRole('radio', { name: 'Timpa dengan yang baru' }).click()
+    await expect(a).toHaveValue('timpa')
+    await expect(b).toHaveValue('timpa')
   } finally {
     await hapusProfil(request, id)
   }
