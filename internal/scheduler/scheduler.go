@@ -77,6 +77,8 @@ type StatusBel struct {
 	JenisBelID int64
 	Label      string
 	Sudah      bool
+	// PengumumanID: 0 = tanpa pengumuman.
+	PengumumanID int64
 }
 
 // Status adalah gambaran jadwal hari ini menurut pemeriksaan terakhir.
@@ -102,7 +104,7 @@ func (s *Scheduler) Status() Status {
 	for _, b := range s.hasil.Bel {
 		st.Bel = append(st.Bel, StatusBel{
 			JadwalID: b.JadwalID, Waktu: b.Waktu, JenisBelID: b.JenisBelID,
-			Label: b.Label, Sudah: s.sudah[b.JadwalID],
+			Label: b.Label, Sudah: s.sudah[b.JadwalID], PengumumanID: b.PengumumanID,
 		})
 	}
 	return st

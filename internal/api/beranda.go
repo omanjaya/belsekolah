@@ -47,6 +47,11 @@ func (s *server) status(w http.ResponseWriter, r *http.Request) {
 		if j, ok := peta[b.JenisBelID]; ok {
 			item.JenisBel = &j
 		}
+		if b.PengumumanID != 0 {
+			if a, err := s.Store.GetAudio(ctx, b.PengumumanID); err == nil {
+				item.Pengumuman = &store.SuaraRingkas{ID: a.ID, Nama: a.Nama}
+			}
+		}
 		out.Bel = append(out.Bel, item)
 		if out.Berikutnya == nil && !b.Sudah && b.Waktu.After(now) {
 			salinan := item

@@ -82,6 +82,8 @@ type periksaDTO struct {
 	JumlahBel          int      `json:"jumlahBel"`
 	JenisBelTakDikenal []string `json:"jenisBelTakDikenal"`
 	NamaTersedia       string   `json:"namaTersedia"`
+
+	PengumumanTakDitemukan []string `json:"pengumumanTakDitemukan"`
 }
 
 func (s *server) periksaImpor(w http.ResponseWriter, r *http.Request) {
@@ -94,12 +96,20 @@ func (s *server) periksaImpor(w http.ResponseWriter, r *http.Request) {
 		s.tulisErrorData(w, err)
 		return
 	}
+	png, err := s.Store.PengumumanTakDikenal(r.Context(), d)
+	if err != nil {
+		s.tulisErrorData(w, err)
+		return
+	}
+	if png == nil {
+		png = []string{}
+	}
 	nama, err := s.Store.NamaProfilTersedia(r.Context(), d.Nama)
 	if err != nil {
 		s.tulisErrorData(w, err)
 		return
 	}
-	tulisJSON(w, http.StatusOK, periksaDTO{Nama: d.Nama, JumlahBel: len(d.Jadwal), JenisBelTakDikenal: tak, NamaTersedia: nama})
+	tulisJSON(w, http.StatusOK, periksaDTO{Nama: d.Nama, JumlahBel: len(d.Jadwal), JenisBelTakDikenal: tak, NamaTersedia: nama, PengumumanTakDitemukan: png})
 }
 
 type imporDTO struct {
