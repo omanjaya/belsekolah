@@ -42,14 +42,32 @@ func (s *server) status(w http.ResponseWriter, r *http.Request) {
 	for _, j := range jenis {
 		peta[j.ID] = jenisBelRingkasDTO{ID: j.ID, Nama: j.Nama, Warna: j.Warna}
 	}
+	var namaSuara map[int64]string // nil bila gagal dimuat
+	perluSuara := false
+	for _, b := range st.Bel {
+		if b.PengumumanID != 0 {
+			perluSuara = true
+			break
+		}
+	}
+	if perluSuara {
+		if daftar, err := s.Store.ListAudio(ctx); err != nil {
+			s.Log.Error("muat daftar suara untuk status", "err", err)
+		} else {
+			namaSuara = make(map[int64]string, len(daftar))
+			for _, a := range daftar {
+				namaSuara[a.ID] = a.Nama
+			}
+		}
+	}
 	for _, b := range st.Bel {
 		item := belHariIniDTO{JadwalID: b.JadwalID, Jam: b.Waktu.Format("15:04"), Waktu: b.Waktu, Label: b.Label, Sudah: b.Sudah}
 		if j, ok := peta[b.JenisBelID]; ok {
 			item.JenisBel = &j
 		}
 		if b.PengumumanID != 0 {
-			if a, err := s.Store.GetAudio(ctx, b.PengumumanID); err == nil {
-				item.Pengumuman = &store.SuaraRingkas{ID: a.ID, Nama: a.Nama}
+			if nama, ok := namaSuara[b.PengumumanID]; ok {
+				item.Pengumuman = &store.SuaraRingkas{ID: b.PengumumanID, Nama: nama}
 			}
 		}
 		out.Bel = append(out.Bel, item)

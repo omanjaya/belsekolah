@@ -20,6 +20,7 @@
     return k ? audio.filter((a) => a.nama.toLowerCase().includes(k)) : audio
   })
   const terpilih = $derived(audio.find((a) => a.id === nilai) ?? null)
+  const hilang = $derived(nilai !== null && terpilih === null)
 
   function pilih(v: number | null) {
     nilai = v
@@ -53,7 +54,7 @@
     class="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
   />
   <div class="flex items-center justify-between gap-2 text-sm text-slate-700">
-    <span>{terpilih ? terpilih.nama : 'Tanpa pengumuman'}</span>
+    <span>{terpilih ? terpilih.nama : hilang ? `Suara #${nilai} (tidak ada di daftar)` : 'Tanpa pengumuman'}</span>
     {#if terpilih}
       <button
         type="button"
@@ -78,8 +79,8 @@
         {a.nama}
       </button>
     {/each}
-    {#if tersaring.length === 0}
-      <p class="px-3 py-2 text-sm text-slate-500">Tidak ada suara yang cocok</p>
-    {/if}
   </div>
+  {#if tersaring.length === 0}
+    <p class="px-3 py-2 text-sm text-slate-500">Tidak ada suara yang cocok</p>
+  {/if}
 </div>

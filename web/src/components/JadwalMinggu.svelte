@@ -43,13 +43,13 @@
                   onclick={() => onpilih(b.kunci)}
                 >
                   <span class="font-bold tabular-nums">{jam5(b.jam)}</span>
-                  {#if b.pengumuman}<Volume2 class="ml-1 inline size-3.5 text-slate-500" aria-label="dengan pengumuman {b.pengumuman}" />{/if}
+                  {#if b.pengumuman}<Volume2 role="img" class="ml-1 inline size-3.5 text-slate-500" aria-label="dengan pengumuman {b.pengumuman}" />{/if}
                   <span class="block truncate text-slate-700">{b.label || b.jenisNama}</span>
                 </button>
               {:else}
                 <div class={kelas} style="border-left-color: {b.warna}">
                   <span class="font-bold tabular-nums">{jam5(b.jam)}</span>
-                  {#if b.pengumuman}<Volume2 class="ml-1 inline size-3.5 text-slate-500" aria-label="dengan pengumuman {b.pengumuman}" />{/if}
+                  {#if b.pengumuman}<Volume2 role="img" class="ml-1 inline size-3.5 text-slate-500" aria-label="dengan pengumuman {b.pengumuman}" />{/if}
                   <span class="block truncate text-slate-700">{b.label || b.jenisNama}</span>
                 </div>
               {/if}

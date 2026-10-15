@@ -80,6 +80,7 @@ Kecocokan berbasis awalan harus berhenti di batas kata, sehingga "jam ke 1" tida
   - Saat keterangan berubah (debounce 300 ms) dan pengguna belum memilih pengumuman secara manual di panel itu, form memanggil `GET /api/pengumuman/cocok?keterangan=...` lalu mengisi pilihan dengan hasilnya.
   - Pilihan manual, termasuk "Tanpa pengumuman", tidak pernah ditimpa oleh pengisian otomatis.
   - Panel ubah untuk baris yang sudah punya pengumuman tidak mengisi otomatis.
+  - Panel ubah tidak mengisi otomatis kecuali keterangan diubah di panel itu.
 - **Tambah banyak dan impor:**
   - Bel masukan yang tidak membawa `pengumuman` diisi dengan `Cocokkan(label)` saat disimpan, berlaku untuk baris baru maupun yang ditimpa.
   - Bel masukan yang membawa `pengumuman` (nama suara dari file) dicocokkan dengan nama suara di pustaka tanpa membedakan huruf besar/kecil dan dengan `TrimSpace`. Bila tidak ditemukan, kolom dikosongkan.
@@ -114,7 +115,7 @@ Kecocokan berbasis awalan harus berhenti di batas kata, sehingga "jam ke 1" tida
 - **Form bel** (panel geser di Jadwal):
   - Medan "Pengumuman" berupa komponen `PilihSuara`: kotak cari, daftar suara yang tersaring, opsi "Tanpa pengumuman", dan tombol ▶ untuk mencoba.
   - Di bawahnya ada keterangan kecil "Diisi otomatis dari keterangan" bila nilai berasal dari pengisian otomatis.
-- **Tampilan Hari:** kolom "Pengumuman" berisi nama suara atau "—". Di HP, isinya menjadi baris tambahan di kartu.
+- **Tampilan Hari:** kolom "Pengumuman" berisi nama suara atau "—". Di HP tabel bergulir menyamping seperti kolom lain.
 - **Tampilan Minggu:** kartu bel yang punya pengumuman menampilkan ikon speaker kecil dengan `aria-label` "dengan pengumuman ‹nama›".
 - **Beranda:** bel berikutnya menampilkan "+ ‹nama pengumuman›" bila ada.
 - **Bar alat Jadwal:** tombol "Isi pengumuman otomatis" membuka `PanelGeser` saran (§6). Bila tidak ada saran, muncul pesan "Semua bel sudah punya pengumuman atau tidak ada suara yang cocok".

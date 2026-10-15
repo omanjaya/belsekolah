@@ -140,6 +140,8 @@
   let pengumumanManual = $state(false)
   let otomatis = $state(false)
   let urutCocok = 0
+  // Keterangan saat panel Ubah dibuka; pengisian otomatis baru jalan setelah keterangan diubah.
+  let labelAwal: string | null = null
   let galatForm = $state('')
   let simpan = $state(false)
 
@@ -151,6 +153,7 @@
     fLabel = ''
     fPengumuman = null
     pengumumanManual = false
+    labelAwal = null
     otomatis = false
     galatForm = ''
     bukaForm = true
@@ -164,6 +167,7 @@
     fLabel = j.label
     fPengumuman = j.pengumumanId ?? null
     pengumumanManual = j.pengumumanId != null
+    labelAwal = j.label
     otomatis = false
     galatForm = ''
     bukaForm = true
@@ -172,6 +176,8 @@
   // Isi pengumuman otomatis dari keterangan selama belum dipilih manual.
   $effect(() => {
     if (!bukaForm || pengumumanManual) return
+    // Panel Ubah: jangan isi ulang sebelum keterangan diubah pengguna.
+    if (labelAwal !== null && fLabel === labelAwal) return
     const ket = fLabel.trim()
     untrack(() => urutCocok++)
     const no = untrack(() => urutCocok)
@@ -366,7 +372,7 @@
                 {/if}
               </td>
               <td>{namaSuara(jb)}</td>
-              <td>{namaPengumuman(j.pengumumanId) ?? '—'}</td>
+              <td>{j.pengumumanId == null ? '—' : (namaPengumuman(j.pengumumanId) ?? `Suara #${j.pengumumanId} (tidak ada di daftar)`)}</td>
               <td class="text-right whitespace-nowrap">
                 <button type="button" class="min-h-11 rounded-lg px-3 text-slate-700 hover:bg-slate-100" aria-label="Ubah {jam5(j.jam)}" onclick={() => bukaUbah(j)}>Ubah</button>
                 <button type="button" class="min-h-11 rounded-lg px-3 text-red-700 hover:bg-red-50" aria-label="Hapus {jam5(j.jam)}" onclick={() => hapus(j)}>Hapus</button>

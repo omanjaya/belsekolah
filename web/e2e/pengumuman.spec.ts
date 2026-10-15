@@ -163,3 +163,32 @@ test('suara yang dipakai bel tidak bisa dihapus (409)', async ({ request }) => {
     await request.delete(`/api/audio/${suaraId}`)
   }
 })
+
+test('panel Ubah tidak mengisi ulang bel tanpa pengumuman sampai keterangan diubah', async ({ page, request }) => {
+  const ket = `Jam ke-3 ${sufiks()}`
+  const ket2 = `Jam ke-4 ${sufiks()}`
+  const idA = await unggahSuara(request, `${ket} dimulai`)
+  const idB = await unggahSuara(request, `${ket2} dimulai`)
+  const profilId = await buatProfil(request, unik('Pgm Ubah Kosong'))
+  try {
+    await tambahBel(request, profilId, '08:30', ket)
+    const bel = await daftarBel(request, profilId)
+    expect(bel.find((b) => b.label === ket)?.pengumumanId ?? null).toBeNull()
+
+    await bukaJadwalHari(page, profilId)
+    await page.getByRole('button', { name: 'Ubah 08:30' }).click()
+    const panel = page.getByRole('dialog', { name: 'Ubah bel' })
+    await expect(panel.getByLabel('Label', { exact: true })).toHaveValue(ket)
+    await page.waitForTimeout(700)
+    await expect(panel.getByText('Diisi otomatis dari keterangan')).toHaveCount(0)
+    await expect(panel.getByRole('option', { name: 'Tanpa pengumuman' })).toHaveAttribute('aria-selected', 'true')
+
+    await panel.getByLabel('Label', { exact: true }).fill(ket2)
+    await expect(panel.getByText('Diisi otomatis dari keterangan')).toBeVisible()
+    await expect(panel.getByRole('option', { name: `${ket2} dimulai` })).toHaveAttribute('aria-selected', 'true')
+  } finally {
+    await request.delete(`/api/profil/${profilId}`)
+    await request.delete(`/api/audio/${idA}`)
+    await request.delete(`/api/audio/${idB}`)
+  }
+})
