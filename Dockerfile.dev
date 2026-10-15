@@ -1,0 +1,17 @@
+# syntax=docker/dockerfile:1
+# Image development dengan hot reload backend (air). Dipakai compose.dev.yaml; source di-mount ke /src.
+FROM golang:1.27-trixie
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends mpv ffmpeg ca-certificates tzdata curl python3 pipx \
+ && rm -rf /var/lib/apt/lists/*
+RUN PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install edge-tts
+RUN go install github.com/air-verse/air@v1.61.7
+COPY deploy/docker/asound.conf /etc/asound.conf
+RUN printf '%s\n' '#!/bin/sh' \
+  'while :; do' \
+  '  /tmp/air/belsekolah -data /var/lib/belsekolah -addr :8080 -tz Asia/Jakarta; kode=$?' \
+  '  [ "$kode" -eq 3 ] || exit "$kode"' \
+  'done' > /usr/local/bin/bel-dev && chmod +x /usr/local/bin/bel-dev
+ENV BELSEKOLAH_MPV_AO=null
+WORKDIR /src
+CMD ["air", "-c", ".air.toml"]

@@ -1,0 +1,18 @@
+# Hot reload backend untuk compose.dev.yaml: build ulang dan jalankan ulang saat file .go berubah.
+root = "."
+tmp_dir = "/tmp/air"
+
+[build]
+cmd = "go build -o /tmp/air/belsekolah ./cmd/belsekolah"
+# bel-dev menjalankan ulang aplikasi saat keluar dengan kode 3 (ganti zona waktu),
+# seperti systemd di produksi. Opsi rerun milik air tidak dipakai: panik saat reload (v1.61.7).
+bin = "/usr/local/bin/bel-dev"
+include_ext = ["go"]
+exclude_dir = ["web", "dist", "tmp-data", "docs", "e2e", "deploy", ".superpowers", ".claude"]
+exclude_regex = ["_test\\.go$"]
+delay = 500
+send_interrupt = true
+kill_delay = "2s"
+
+[log]
+time = true

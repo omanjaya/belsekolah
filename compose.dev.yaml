@@ -1,0 +1,37 @@
+# Development dengan hot reload: docker compose -f compose.dev.yaml up --build
+# Buka http://localhost:5173 (ganti port dengan BEL_DEV_PORT). Ubah .svelte/.ts -> langsung tampil;
+# ubah .go -> backend dibuild ulang otomatis (~beberapa detik).
+name: belsekolah-dev
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/src
+      - gomod:/go/pkg/mod
+      - gocache:/root/.cache/go-build
+      - data:/var/lib/belsekolah
+    environment:
+      TZ: Asia/Jakarta
+    restart: unless-stopped
+
+  web:
+    image: node:22-trixie-slim
+    working_dir: /web
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0 --port 5173 --strictPort"
+    ports:
+      - "${BEL_DEV_PORT:-5173}:5173"
+    volumes:
+      - ./web:/web
+      - node_modules:/web/node_modules
+    environment:
+      BEL_API: http://api:8080
+    depends_on:
+      - api
+
+volumes:
+  gomod:
+  gocache:
+  data:
+  node_modules:

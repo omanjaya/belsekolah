@@ -20,7 +20,19 @@ Lalu buka http://localhost:8080 (ubah port host dengan `BEL_PORT=18080 docker co
 docker compose exec belsekolah cat /var/lib/belsekolah/password-awal.txt
 ```
 
-Frontend dengan hot reload (proxy `/api` ke port 8080):
+Hot reload backend dan frontend sekaligus (air untuk Go, Vite untuk Svelte):
+
+```
+docker compose -f compose.dev.yaml up --build
+```
+
+Lalu buka http://localhost:5173 (ubah port dengan `BEL_DEV_PORT`). Perubahan `.svelte`/`.ts` langsung tampil di browser; perubahan `.go` membuat backend dibuild dan dijalankan ulang otomatis. Data dev terpisah dari `compose.yaml`; password awalnya:
+
+```
+docker compose -f compose.dev.yaml exec api cat /var/lib/belsekolah/password-awal.txt
+```
+
+Frontend saja tanpa Docker (proxy `/api` ke port 8080, ubah dengan `BEL_API=http://127.0.0.1:18081`):
 
 ```
 cd web && npm ci && npm run dev
