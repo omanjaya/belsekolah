@@ -104,6 +104,8 @@
   let galatFile = $state('')
   let galatMuatFile = $state('')
   let urutanFile = 0
+  let galatDaftarProfil = $state('')
+  let urutanDaftarProfil = 0
 
   const pesan = (e: unknown) => (e instanceof Error ? e.message : 'Gagal memuat data')
 
@@ -136,15 +138,15 @@
   }
 
   async function muatDaftarProfil() {
-    const saya = ++urutanFile
-    galatMuatFile = ''
+    const saya = ++urutanDaftarProfil
+    galatDaftarProfil = ''
     try {
       const r = await api.get<Profil[]>('/profil')
-      if (saya !== urutanFile) return
+      if (saya !== urutanDaftarProfil) return
       daftarProfil = (r ?? []).filter((p) => p.id !== profilId)
     } catch (e) {
-      if (saya !== urutanFile) return
-      galatMuatFile = pesan(e)
+      if (saya !== urutanDaftarProfil) return
+      galatDaftarProfil = pesan(e)
     }
   }
   async function pilihProfil(id: string) {
@@ -378,6 +380,9 @@
       </Medan>
       {#if galatFile}
         <p class="text-sm text-red-700" role="alert">{galatFile}</p>
+      {/if}
+      {#if galatDaftarProfil}
+        <p class="text-sm text-red-700" role="alert">{galatDaftarProfil}</p>
       {/if}
       {#if galatMuatFile}
         <p class="text-sm text-red-700" role="alert">{galatMuatFile}</p>
