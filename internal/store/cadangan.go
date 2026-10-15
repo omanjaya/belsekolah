@@ -121,21 +121,11 @@ func kunciNama(n string) string { return strings.ToLower(strings.TrimSpace(n)) }
 
 // JenisBelTakDikenal mengembalikan nama jenis bel yang dipakai d tetapi belum ada di database.
 func (s *Store) JenisBelTakDikenal(ctx context.Context, d formatjadwal.Data) ([]string, error) {
-	ada, err := s.ListJenisBel(ctx)
+	peta, err := s.bacaPetaJenis(ctx)
 	if err != nil {
 		return nil, err
 	}
-	kenal := make(map[string]bool, len(ada))
-	for _, j := range ada {
-		kenal[kunciNama(j.Nama)] = true
-	}
-	out := []string{}
-	for _, j := range d.JenisDipakai() {
-		if !kenal[kunciNama(j.Nama)] {
-			out = append(out, j.Nama)
-		}
-	}
-	return out, nil
+	return peta.takDikenal(d), nil
 }
 
 // NamaProfilTersedia mengembalikan nama, atau nama + " (impor)", " (impor 2)", ... yang belum dipakai.
@@ -202,31 +192,13 @@ func (s *Store) ImporJadwal(ctx context.Context, d formatjadwal.Data, nama strin
 		return 0, err
 	}
 	// Semua pembacaan sebelum transaksi: database hanya punya satu koneksi.
-	ada, err := s.ListJenisBel(ctx)
+	peta, err := s.bacaPetaJenis(ctx)
 	if err != nil {
 		return 0, err
 	}
-	idAda := make(map[string]int64, len(ada))
-	idSah := make(map[int64]bool, len(ada))
-	for _, j := range ada {
-		idAda[kunciNama(j.Nama)] = j.ID
-		idSah[j.ID] = true
-	}
-	dipakai := d.JenisDipakai()
-	perluSuara := false
-	for _, j := range dipakai {
-		if _, ok := idAda[kunciNama(j.Nama)]; ok {
-			continue
-		}
-		p, ok := pemetaan[j.Nama]
-		switch {
-		case !ok || (!p.Baru && p.JenisBelID == 0):
-			return 0, validasi("jenis bel %q belum dipetakan", j.Nama)
-		case p.Baru:
-			perluSuara = true
-		case !idSah[p.JenisBelID]:
-			return 0, validasi("jenis bel tujuan untuk %q tidak ditemukan", j.Nama)
-		}
+	perluSuara, err := peta.periksaPemetaan(d, pemetaan)
+	if err != nil {
+		return 0, err
 	}
 	var suara int64
 	if perluSuara {
@@ -248,31 +220,9 @@ func (s *Store) ImporJadwal(ctx context.Context, d formatjadwal.Data, nama strin
 	if err != nil {
 		return 0, err
 	}
-	idJenis := make(map[string]int64, len(dipakai))
-	for _, j := range dipakai {
-		k := kunciNama(j.Nama)
-		if id, ok := idAda[k]; ok {
-			idJenis[k] = id
-			continue
-		}
-		p := pemetaan[j.Nama]
-		if !p.Baru {
-			idJenis[k] = p.JenisBelID
-			continue
-		}
-		res, err := tx.ExecContext(ctx, `INSERT INTO jenis_bel (nama, warna) VALUES (?, ?)`, strings.TrimSpace(j.Nama), j.Warna)
-		if err != nil {
-			return 0, terjemahkan(err, nil)
-		}
-		id, err := res.LastInsertId()
-		if err != nil {
-			return 0, err
-		}
-		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO urutan_bel (jenis_bel_id, urutan, audio_id) VALUES (?, 1, ?)`, id, suara); err != nil {
-			return 0, err
-		}
-		idJenis[k] = id
+	idJenis, err := peta.buatJenis(ctx, tx, d, pemetaan, suara)
+	if err != nil {
+		return 0, err
 	}
 	for _, b := range d.Jadwal {
 		if _, err := tx.ExecContext(ctx,

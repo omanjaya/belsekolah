@@ -15,6 +15,7 @@
   import Kartu from '../components/Kartu.svelte'
   import Memuat from '../components/Memuat.svelte'
   import GalatMuat from '../components/GalatMuat.svelte'
+  import TambahBanyak from '../components/TambahBanyak.svelte'
 
   const masukan =
     'min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20'
@@ -37,6 +38,8 @@
   let galatDaftar = $state(false)
   let urutMuat = 0
   let mengekspor = $state(false)
+  let bukaBanyak = $state(false)
+  const profilAktif = $derived(profil.find((p) => p.id === profilId))
 
   const jam5 = (j: string) => j.slice(0, 5)
   const hariIni = $derived(semua.filter((j) => j.hari === hari).sort((a, b) => jam5(a.jam).localeCompare(jam5(b.jam))))
@@ -76,6 +79,16 @@
     } finally {
       if (no === urutMuat) memuatDaftar = false
     }
+  }
+
+  async function selesaiGabung() {
+    // Gabung bisa membuat jenis bel baru; muat ulang bersama jadwal.
+    try {
+      jenis = await api.get<JenisBel[]>('/jenis-bel')
+    } catch (e) {
+      galat(e)
+    }
+    await muatJadwal()
   }
 
   async function muatAwal() {
@@ -253,6 +266,7 @@
     {#snippet kanan()}
       <Tombol varian="kedua" onclick={bukaSalinan} disabled={!profilId}>Salin hari…</Tombol>
       <Tombol varian="kedua" onclick={ekspor} sibuk={mengekspor} disabled={!profilId}>Ekspor</Tombol>
+      <Tombol varian="kedua" onclick={() => (bukaBanyak = true)} disabled={!profilId}>Tambah banyak</Tombol>
       <Tombol onclick={bukaTambah} disabled={!profilId}>+ Tambah bel</Tombol>
     {/snippet}
   </BarAlat>
@@ -392,3 +406,7 @@
     <Tombol type="submit" form="form-salin" sibuk={salin}>Salin</Tombol>
   {/snippet}
 </PanelGeser>
+
+{#if profilAktif}
+  <TambahBanyak bind:buka={bukaBanyak} profil={profilAktif} jenisBel={jenis} onselesai={selesaiGabung} />
+{/if}

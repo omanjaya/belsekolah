@@ -37,3 +37,13 @@ Temuan review yang sengaja ditunda. Tidak ada yang memblokir pemakaian; urut kir
 - Laci menu HP tanpa focus trap; pil status tidak punya keadaan "tidak terhubung".
 - Template: tanggal "Dibuat" diambil dari string UTC; layout dua kolom (lg) belum diuji otomatis.
 - Beberapa celah tes: batas parameter pembuat (kegiatan Jumat, ujian, 23:59), file >256 KB di periksa, ganti nama template ke nama yang sudah ada.
+
+## Tambah banyak (Rencana 8) — temuan kecil yang ditunda
+- Periksa gabung belum memperingatkan bila total bel profil akan melebihi 1000 (baru ditolak saat Gabungkan).
+- Tempel teks: koma di dalam keterangan pada baris berpemisah koma dianggap kolom berlebih; pemisah di akhir baris dianggap kolom ke-4; nomor baris galat bergeser setelah tempel ulang parsial.
+- Baris isian dengan keterangan tetapi tanpa jam dilewati tanpa peringatan; ganti "Jenis bel bawaan" tidak mengubah baris kosong yang sudah ada.
+- Daftar template/profil di tab sumber tidak bisa dicoba ulang setelah gagal dimuat; cek bentuk file .json dangkal (server tetap memvalidasi).
+- Ringkasan sumber tampil di badan panel, bukan kaki panel.
+- Celah tes: API 400 untuk batas 1000 & tujuan pemetaan tak ada (sudah diuji di store); pemetaan ke jenis yang ada mengubah klasifikasi; e2e tempel ulang & Kembali saat memeriksa; tes BatasTotal store lambat.
+- Kerapian: kelasInput tersalin di beberapa komponen; FormPembuat tanpa nilai bawaan $bindable.
+- e2e.sh fase 2 (Go e2e di Docker) belum diulang untuk commit perbaikan akhir karena internet mati; jalankan `BEL_PORT=18081 ./scripts/e2e.sh` sekali lagi.

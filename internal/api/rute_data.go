@@ -10,6 +10,8 @@ func (s *server) daftarRuteData(rute func(pola string, h http.HandlerFunc)) {
 	rute("DELETE /api/profil/{id}", s.hapusProfil)
 	rute("POST /api/profil/{id}/duplikat", s.duplikatProfil)
 	rute("GET /api/profil/{id}/ekspor", s.eksporProfil)
+	rute("POST /api/profil/{id}/gabung/periksa", s.periksaGabung)
+	rute("POST /api/profil/{id}/gabung", s.gabungJadwal)
 	rute("POST /api/impor/periksa", s.periksaImpor)
 	rute("POST /api/impor", s.impor)
 

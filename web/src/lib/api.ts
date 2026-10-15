@@ -102,6 +102,16 @@ export interface ParameterPembuat {
   ujian: { jamMulai: string; jumlahSesi: number; lamaSesi: number; jeda: number }
 }
 
+export type StatusGabung = 'baru' | 'kembar' | 'bentrok'
+export interface IsiGabung { jenisBel: string; label: string }
+export interface BarisGabung { hari: number; jam: string; status: StatusGabung; lama: IsiGabung | null; baru: IsiGabung }
+export interface HasilPeriksaGabung {
+  jenisBelTakDikenal: string[]
+  ringkasan: { baru: number; kembar: number; bentrok: number }
+  baris: BarisGabung[]
+}
+export interface HasilGabung { ditambah: number; ditimpa: number; dilewati: number }
+
 /** Unduh file dari API (mis. ekspor jadwal); nama file dari Content-Disposition. */
 export async function unduh(path: string): Promise<void> {
   let res: Response
