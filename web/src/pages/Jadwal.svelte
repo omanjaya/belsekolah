@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
-  import { api, ApiError, unduh, type Audio, type Jadwal, type JenisBel, type Pengaturan, type Profil, type Status } from '../lib/api'
+  import { onMount, untrack } from 'svelte'
+  import { api, ApiError, unduh, type Audio, type Jadwal, type JenisBel, type Pengaturan, type Profil, type Status, type SuaraRingkas } from '../lib/api'
   import { NAMA_HARI } from '../lib/format'
   import { beriTahu, galat } from '../lib/notif.svelte'
   import { konfirmasi } from '../lib/konfirmasi.svelte'
@@ -16,6 +16,8 @@
   import Memuat from '../components/Memuat.svelte'
   import GalatMuat from '../components/GalatMuat.svelte'
   import TambahBanyak from '../components/TambahBanyak.svelte'
+  import PilihSuara from '../components/PilihSuara.svelte'
+  import IsiPengumuman from '../components/IsiPengumuman.svelte'
 
   const masukan =
     'min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20'
@@ -39,6 +41,7 @@
   let urutMuat = 0
   let mengekspor = $state(false)
   let bukaBanyak = $state(false)
+  let bukaIsi = $state(false)
   const profilAktif = $derived(profil.find((p) => p.id === profilId))
 
   const jam5 = (j: string) => j.slice(0, 5)
@@ -48,10 +51,12 @@
   const namaSuara = (jb: JenisBel | undefined) =>
     (jb?.audioIds ?? []).map((id) => audio.find((a) => a.id === id)?.nama).filter(Boolean).join(', ') || '-'
 
+  const namaPengumuman = (id: number | null) => (id === null ? undefined : audio.find((a) => a.id === id)?.nama)
+
   const belMinggu = $derived(
     semua.map((j) => {
       const jb = jenisPer(j.jenisBelId)
-      return { kunci: j.id, hari: j.hari, jam: j.jam, label: j.label, jenisNama: jb?.nama ?? 'Bel', warna: jb?.warna ?? '#94a3b8' }
+      return { kunci: j.id, hari: j.hari, jam: j.jam, label: j.label, jenisNama: jb?.nama ?? 'Bel', warna: jb?.warna ?? '#94a3b8', pengumuman: namaPengumuman(j.pengumumanId) }
     }),
   )
 
@@ -131,6 +136,10 @@
   let fJam = $state('')
   let fJenis = $state(0)
   let fLabel = $state('')
+  let fPengumuman = $state<number | null>(null)
+  let pengumumanManual = $state(false)
+  let otomatis = $state(false)
+  let urutCocok = 0
   let galatForm = $state('')
   let simpan = $state(false)
 
@@ -140,6 +149,9 @@
     fJam = ''
     fJenis = jenis[0]?.id ?? 0
     fLabel = ''
+    fPengumuman = null
+    pengumumanManual = false
+    otomatis = false
     galatForm = ''
     bukaForm = true
   }
@@ -150,9 +162,38 @@
     fJam = jam5(j.jam)
     fJenis = j.jenisBelId
     fLabel = j.label
+    fPengumuman = j.pengumumanId ?? null
+    pengumumanManual = j.pengumumanId != null
+    otomatis = false
     galatForm = ''
     bukaForm = true
   }
+
+  // Isi pengumuman otomatis dari keterangan selama belum dipilih manual.
+  $effect(() => {
+    if (!bukaForm || pengumumanManual) return
+    const ket = fLabel.trim()
+    untrack(() => urutCocok++)
+    const no = untrack(() => urutCocok)
+    if (!ket) {
+      untrack(() => {
+        fPengumuman = null
+        otomatis = false
+      })
+      return
+    }
+    const t = setTimeout(async () => {
+      try {
+        const r = await api.get<{ suara: SuaraRingkas | null }>(`/pengumuman/cocok?keterangan=${encodeURIComponent(ket)}`)
+        if (no !== urutCocok || pengumumanManual) return
+        fPengumuman = r?.suara?.id ?? null
+        otomatis = !!r?.suara
+      } catch {
+        // Diabaikan: pengisian otomatis hanyalah bantuan.
+      }
+    }, 300)
+    return () => clearTimeout(t)
+  })
 
   function pilihKartu(kunci: string | number) {
     const j = semua.find((x) => x.id === kunci)
@@ -166,7 +207,7 @@
     if (!fJenis) return (galatForm = 'Jenis bel wajib dipilih.')
     simpan = true
     try {
-      const data = { profilId, hari: fHari, jam: fJam.slice(0, 5), jenisBelId: fJenis, label: fLabel.trim() }
+      const data = { profilId, hari: fHari, jam: fJam.slice(0, 5), jenisBelId: fJenis, label: fLabel.trim(), ...(fPengumuman !== null ? { pengumumanId: fPengumuman } : {}) }
       if (ubahId === null) await api.post('/jadwal', data)
       else await api.put(`/jadwal/${ubahId}`, data)
       bukaForm = false
@@ -267,6 +308,7 @@
       <Tombol varian="kedua" onclick={bukaSalinan} disabled={!profilId}>Salin hari…</Tombol>
       <Tombol varian="kedua" onclick={ekspor} sibuk={mengekspor} disabled={!profilId}>Ekspor</Tombol>
       <Tombol varian="kedua" onclick={() => (bukaBanyak = true)} disabled={!profilId}>Tambah banyak</Tombol>
+      <Tombol varian="kedua" onclick={() => (bukaIsi = true)} disabled={!profilAktif}>Isi pengumuman otomatis</Tombol>
       <Tombol onclick={bukaTambah} disabled={!profilId}>+ Tambah bel</Tombol>
     {/snippet}
   </BarAlat>
@@ -307,6 +349,7 @@
             <th scope="col">Keterangan</th>
             <th scope="col">Jenis bel</th>
             <th scope="col">Suara</th>
+            <th scope="col">Pengumuman</th>
             <th scope="col" class="text-right">Aksi</th>
           {/snippet}
           {#each hariIni as j (j.id)}
@@ -323,6 +366,7 @@
                 {/if}
               </td>
               <td>{namaSuara(jb)}</td>
+              <td>{namaPengumuman(j.pengumumanId) ?? '—'}</td>
               <td class="text-right whitespace-nowrap">
                 <button type="button" class="min-h-11 rounded-lg px-3 text-slate-700 hover:bg-slate-100" aria-label="Ubah {jam5(j.jam)}" onclick={() => bukaUbah(j)}>Ubah</button>
                 <button type="button" class="min-h-11 rounded-lg px-3 text-red-700 hover:bg-red-50" aria-label="Hapus {jam5(j.jam)}" onclick={() => hapus(j)}>Hapus</button>
@@ -357,6 +401,12 @@
     <Medan label="Label" untuk="bel-label" bantuan="Opsional, maksimal 100 karakter.">
       <input id="bel-label" type="text" maxlength={100} class={masukan} bind:value={fLabel} />
     </Medan>
+    <div class="flex flex-col gap-1">
+      <PilihSuara {audio} bind:nilai={fPengumuman} id="f-pengumuman" label="Pengumuman" onpilih={() => ((pengumumanManual = true), (otomatis = false))} />
+      {#if otomatis && !pengumumanManual}
+        <p class="text-sm text-slate-500">Diisi otomatis dari keterangan</p>
+      {/if}
+    </div>
     {#if galatForm}
       <p class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{galatForm}</p>
     {/if}
@@ -409,4 +459,5 @@
 
 {#if profilAktif}
   <TambahBanyak bind:buka={bukaBanyak} profil={profilAktif} jenisBel={jenis} onselesai={selesaiGabung} />
+  <IsiPengumuman bind:buka={bukaIsi} profil={profilAktif} onselesai={() => muatJadwal()} />
 {/if}
