@@ -61,8 +61,8 @@ func (s *Store) DuplikatProfil(ctx context.Context, id int64, nama string) (int6
 		return 0, err
 	}
 	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO jadwal (profil_id, hari, jam, jenis_bel_id, label)
-		 SELECT ?, hari, jam, jenis_bel_id, label FROM jadwal WHERE profil_id = ?`, baru, id); err != nil {
+		`INSERT INTO jadwal (profil_id, hari, jam, jenis_bel_id, label, pengumuman_audio_id)
+		 SELECT ?, hari, jam, jenis_bel_id, label, pengumuman_audio_id FROM jadwal WHERE profil_id = ?`, baru, id); err != nil {
 		return 0, err
 	}
 	return baru, tx.Commit()

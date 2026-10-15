@@ -122,17 +122,22 @@ func (s *Store) CreateJadwal(ctx context.Context, j schedule.Jadwal) (int64, err
 	if err != nil {
 		return 0, err
 	}
+	if err := s.cekPengumuman(ctx, j.PengumumanID); err != nil {
+		return 0, err
+	}
 	id, err := s.insert(ctx,
-		`INSERT INTO jadwal (profil_id, hari, jam, jenis_bel_id, label) VALUES (?, ?, ?, ?, ?)`,
-		j.ProfilID, j.Hari, j.Jam, j.JenisBelID, j.Label)
+		`INSERT INTO jadwal (profil_id, hari, jam, jenis_bel_id, label, pengumuman_audio_id) VALUES (?, ?, ?, ?, ?, ?)`,
+		j.ProfilID, j.Hari, j.Jam, j.JenisBelID, j.Label, nullID(j.PengumumanID))
 	return id, terjemahkan(err, errRefJadwal)
 }
 
-const kolomJadwal = `id, profil_id, hari, jam, jenis_bel_id, label`
+const kolomJadwal = `id, profil_id, hari, jam, jenis_bel_id, label, pengumuman_audio_id`
 
 func scanJadwal(r pemindai) (schedule.Jadwal, error) {
 	var j schedule.Jadwal
-	err := r.Scan(&j.ID, &j.ProfilID, &j.Hari, &j.Jam, &j.JenisBelID, &j.Label)
+	var png sql.NullInt64
+	err := r.Scan(&j.ID, &j.ProfilID, &j.Hari, &j.Jam, &j.JenisBelID, &j.Label, &png)
+	j.PengumumanID = png.Int64
 	if errors.Is(err, sql.ErrNoRows) {
 		return j, ErrTidakAda
 	}
@@ -166,9 +171,27 @@ func (s *Store) UpdateJadwal(ctx context.Context, j schedule.Jadwal) error {
 	if err != nil {
 		return err
 	}
+	if err := s.cekPengumuman(ctx, j.PengumumanID); err != nil {
+		return err
+	}
 	return terjemahkan(cekDiubah(s.db.ExecContext(ctx,
-		`UPDATE jadwal SET profil_id = ?, hari = ?, jam = ?, jenis_bel_id = ?, label = ? WHERE id = ?`,
-		j.ProfilID, j.Hari, j.Jam, j.JenisBelID, j.Label, j.ID)), errRefJadwal)
+		`UPDATE jadwal SET profil_id = ?, hari = ?, jam = ?, jenis_bel_id = ?, label = ?, pengumuman_audio_id = ? WHERE id = ?`,
+		j.ProfilID, j.Hari, j.Jam, j.JenisBelID, j.Label, nullID(j.PengumumanID), j.ID)), errRefJadwal)
+}
+
+// cekPengumuman memastikan suara pengumuman (bila ada) benar-benar ada.
+// Dipanggil di luar transaksi.
+func (s *Store) cekPengumuman(ctx context.Context, id int64) error {
+	if id == 0 {
+		return nil
+	}
+	if _, err := s.GetAudio(ctx, id); err != nil {
+		if errors.Is(err, ErrTidakAda) {
+			return validasi("suara pengumuman tidak ditemukan")
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *Store) DeleteJadwal(ctx context.Context, id int64) error {
@@ -195,8 +218,8 @@ func (s *Store) SalinHari(ctx context.Context, profilID int64, dari, ke int) err
 		return err
 	}
 	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO jadwal (profil_id, hari, jam, jenis_bel_id, label)
-		 SELECT profil_id, ?, jam, jenis_bel_id, label FROM jadwal WHERE profil_id = ? AND hari = ?`,
+		`INSERT INTO jadwal (profil_id, hari, jam, jenis_bel_id, label, pengumuman_audio_id)
+		 SELECT profil_id, ?, jam, jenis_bel_id, label, pengumuman_audio_id FROM jadwal WHERE profil_id = ? AND hari = ?`,
 		ke, profilID, dari); err != nil {
 		return err
 	}
@@ -375,15 +398,15 @@ func (s *Store) LoadDataJadwal(ctx context.Context) (schedule.Data, error) {
 
 func (s *Store) semuaJadwal(ctx context.Context) ([]schedule.Jadwal, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, profil_id, hari, jam, jenis_bel_id, label FROM jadwal ORDER BY id`)
+		`SELECT `+kolomJadwal+` FROM jadwal ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var out []schedule.Jadwal
 	for rows.Next() {
-		var j schedule.Jadwal
-		if err := rows.Scan(&j.ID, &j.ProfilID, &j.Hari, &j.Jam, &j.JenisBelID, &j.Label); err != nil {
+		j, err := scanJadwal(rows)
+		if err != nil {
 			return nil, err
 		}
 		out = append(out, j)

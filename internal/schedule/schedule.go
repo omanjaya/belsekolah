@@ -13,12 +13,13 @@ const FormatTanggal = "2006-01-02"
 
 // Jadwal adalah satu bel pada hari tertentu dalam sebuah profil.
 type Jadwal struct {
-	ID         int64
-	ProfilID   int64
-	Hari       int    // 1=Senin ... 7=Minggu
-	Jam        string // "HH:MM"
-	JenisBelID int64
-	Label      string
+	ID           int64
+	ProfilID     int64
+	Hari         int    // 1=Senin ... 7=Minggu
+	Jam          string // "HH:MM"
+	JenisBelID   int64
+	Label        string
+	PengumumanID int64 // 0 = tanpa pengumuman
 }
 
 // Periode membuat rentang tanggal memakai profil tertentu.
@@ -48,10 +49,11 @@ type Data struct {
 
 // Bel adalah satu bel yang harus berbunyi pada waktu tertentu.
 type Bel struct {
-	JadwalID   int64
-	Waktu      time.Time
-	JenisBelID int64
-	Label      string
+	JadwalID     int64
+	Waktu        time.Time
+	JenisBelID   int64
+	Label        string
+	PengumumanID int64
 }
 
 // Hasil adalah bel pada suatu tanggal beserta profil yang dipakai.
@@ -113,10 +115,11 @@ func BelPadaTanggal(tgl time.Time, d Data) Hasil {
 			continue
 		}
 		bel = append(bel, Bel{
-			JadwalID:   j.ID,
-			Waktu:      time.Date(tgl.Year(), tgl.Month(), tgl.Day(), h, m, 0, 0, tgl.Location()),
-			JenisBelID: j.JenisBelID,
-			Label:      j.Label,
+			JadwalID:     j.ID,
+			Waktu:        time.Date(tgl.Year(), tgl.Month(), tgl.Day(), h, m, 0, 0, tgl.Location()),
+			JenisBelID:   j.JenisBelID,
+			Label:        j.Label,
+			PengumumanID: j.PengumumanID,
 		})
 	}
 	sort.Slice(bel, func(a, b int) bool {

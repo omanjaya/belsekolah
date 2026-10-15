@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS jadwal (
   jam           TEXT NOT NULL,
   jenis_bel_id  INTEGER NOT NULL REFERENCES jenis_bel(id) ON DELETE RESTRICT,
   label         TEXT NOT NULL DEFAULT '',
+  pengumuman_audio_id INTEGER REFERENCES audio(id) ON DELETE RESTRICT,
   UNIQUE (profil_id, hari, jam)
 );
 
