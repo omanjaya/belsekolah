@@ -46,4 +46,3 @@ Temuan review yang sengaja ditunda. Tidak ada yang memblokir pemakaian; urut kir
 - Ringkasan sumber tampil di badan panel, bukan kaki panel.
 - Celah tes: API 400 untuk batas 1000 & tujuan pemetaan tak ada (sudah diuji di store); pemetaan ke jenis yang ada mengubah klasifikasi; e2e tempel ulang & Kembali saat memeriksa; tes BatasTotal store lambat.
 - Kerapian: kelasInput tersalin di beberapa komponen; FormPembuat tanpa nilai bawaan $bindable.
-- e2e.sh fase 2 (Go e2e di Docker) belum diulang untuk commit perbaikan akhir karena internet mati; jalankan `BEL_PORT=18081 ./scripts/e2e.sh` sekali lagi.
