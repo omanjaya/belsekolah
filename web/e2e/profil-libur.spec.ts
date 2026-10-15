@@ -6,17 +6,18 @@ test('profil: tambah, ubah nama, jadikan default, hapus', async ({ page, request
   const nama = unik('Ujian')
   try {
     await page.goto('/profil')
-    await page.getByLabel('Nama profil baru').fill(nama)
-    await page.getByRole('button', { name: 'Tambah profil' }).click()
+    await page.getByRole('button', { name: '+ Profil' }).click()
+    await page.getByRole('dialog').getByLabel('Nama profil baru').fill(nama)
+    await page.getByRole('dialog').getByRole('button', { name: 'Simpan' }).click()
     await expect(page.getByText('Profil ditambahkan')).toBeVisible()
 
-    const baris = page.getByRole('listitem').filter({ hasText: nama })
+    const baris = page.getByRole('row').filter({ hasText: nama })
     await baris.getByRole('button', { name: 'Ubah nama' }).click()
     await page.getByRole('dialog').getByLabel('Nama profil').fill(nama + ' Akhir')
     await page.getByRole('dialog').getByRole('button', { name: 'Simpan' }).click()
     await expect(page.getByText(nama + ' Akhir')).toBeVisible()
 
-    const barisBaru = page.getByRole('listitem').filter({ hasText: nama + ' Akhir' })
+    const barisBaru = page.getByRole('row').filter({ hasText: nama + ' Akhir' })
     await barisBaru.getByRole('button', { name: 'Jadikan default' }).click()
     await expect(page.getByText('Profil default diubah')).toBeVisible()
     await expect(barisBaru.getByText('Default')).toBeVisible()
@@ -48,7 +49,7 @@ test('periode khusus: tambah, tumpang tindih ditolak, hapus', async ({ page }) =
   await expect(modal.getByRole('alert')).toContainText('bertabrakan')
   await modal.getByRole('button', { name: 'Tutup' }).click()
 
-  const baris = page.getByRole('listitem').filter({ hasText: 'PTS Uji' })
+  const baris = page.getByRole('row').filter({ hasText: 'PTS Uji' })
   await baris.getByRole('button', { name: /Hapus/ }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Hapus' }).click()
   await expect(page.getByText('PTS Uji')).toHaveCount(0)
@@ -80,16 +81,25 @@ test('libur satu hari dan rentang', async ({ page }) => {
   }
 })
 
+test('libur 1440x900: kotak tabel memenuhi lebar', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/libur')
+  const tabel = page.getByRole('table', { name: 'Daftar libur' })
+  await expect(tabel.getByRole('columnheader', { name: 'Keterangan' })).toBeVisible()
+  expect((await tabel.boundingBox())!.width).toBeGreaterThanOrEqual(1100)
+})
+
 test('ubah nama profil ganda menampilkan galat di dalam dialog', async ({ page }) => {
   await page.goto('/profil')
   await page.getByRole('button', { name: /^Ubah nama/ }).first().click()
   const modal = page.getByRole('dialog')
   const nama = await modal.getByLabel('Nama profil').inputValue()
   await page.getByRole('button', { name: 'Tutup' }).click()
-  await page.getByLabel('Nama profil baru').fill(nama + ' Dua')
-  await page.getByRole('button', { name: 'Tambah profil' }).click()
+  await page.getByRole('button', { name: '+ Profil' }).click()
+  await modal.getByLabel('Nama profil baru').fill(nama + ' Dua')
+  await modal.getByRole('button', { name: 'Simpan' }).click()
   await expect(page.getByText('Profil ditambahkan')).toBeVisible()
-  const baris = page.getByRole('listitem').filter({ hasText: nama + ' Dua' })
+  const baris = page.getByRole('row').filter({ hasText: nama + ' Dua' })
   await baris.getByRole('button', { name: 'Ubah nama' }).click()
   await modal.getByLabel('Nama profil').fill(nama)
   await modal.getByRole('button', { name: 'Simpan' }).click()

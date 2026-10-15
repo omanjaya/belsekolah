@@ -10,7 +10,7 @@ test('jam, profil, dan bel berikutnya tampil', async ({ page, request }) => {
 
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Beranda' })).toBeVisible()
-  await expect(page.getByText(/^\d{2}:\d{2}:\d{2}$/).first()).toBeVisible()
+  await expect(page.getByTestId('jam-server')).toHaveText(/^\d{2}:\d{2}:\d{2} (WIB|WITA|WIT)$/)
   await expect(page.getByText('Profil: Normal')).toBeVisible()
   await expect(page.getByText('Bel Uji Malam').first()).toBeVisible()
   await expect(page.getByText(/^dalam /)).toBeVisible()
@@ -18,8 +18,7 @@ test('jam, profil, dan bel berikutnya tampil', async ({ page, request }) => {
 
 test('bunyikan bel manual dan hentikan', async ({ page, request }) => {
   await page.goto('/')
-  await page.getByLabel('Jenis bel').selectOption({ label: 'Istirahat' })
-  await page.getByRole('button', { name: 'Bunyikan', exact: true }).click()
+  await page.getByRole('button', { name: 'Istirahat', exact: true }).click()
   await expect(page.getByText('Bel dibunyikan')).toBeVisible()
   await page.getByRole('button', { name: 'Hentikan suara' }).click()
   await expect(page.getByText('Suara dihentikan')).toBeVisible()
@@ -72,4 +71,19 @@ test('tombol darurat nonaktif bila jenis bel Darurat tidak ada', async ({ page, 
   } finally {
     expect((await ubah('Darurat')).ok()).toBe(true)
   }
+})
+
+test('tata letak dasbor 1440x900: bel berikutnya dan bel manual sebaris', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/')
+  const berikutnya = page.getByRole('heading', { name: 'Bel berikutnya' })
+  const manual = page.getByRole('heading', { name: 'Bel manual' })
+  await expect(berikutnya).toBeVisible()
+  await expect(manual).toBeVisible()
+  const a = (await berikutnya.boundingBox())!
+  const b = (await manual.boundingBox())!
+  expect(Math.abs(a.y - b.y)).toBeLessThanOrEqual(8)
+  const grid = (await page.getByTestId('beranda-grid').first().boundingBox())!
+  expect(grid.width).toBeGreaterThanOrEqual(1100)
+  await expect(page.getByRole('heading', { name: 'Status sistem' })).toBeVisible()
 })

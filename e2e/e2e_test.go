@@ -330,4 +330,52 @@ func TestAlurLengkap(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("ganti zona waktu memulai ulang aplikasi", func(t *testing.T) {
+		k3 := baru(t)
+		k3.do("POST", "/api/login", map[string]string{"password": pwBaru}, 200, nil)
+		var sesi struct {
+			Boot string `json:"boot"`
+		}
+		k3.do("GET", "/api/sesi", nil, 200, &sesi)
+		var p map[string]any
+		k3.do("GET", "/api/pengaturan", nil, 200, &p)
+		p["zonaWaktu"] = "WITA"
+		var hasil struct {
+			MulaiUlang bool `json:"mulaiUlang"`
+		}
+		k3.do("PUT", "/api/pengaturan", p, 200, &hasil)
+		if !hasil.MulaiUlang {
+			t.Fatal("ganti zona harus membalas mulaiUlang")
+		}
+		baruBoot := ""
+		for batas := time.Now().Add(30 * time.Second); time.Now().Before(batas); time.Sleep(200 * time.Millisecond) {
+			c := &http.Client{Timeout: 2 * time.Second, Transport: &http.Transport{DisableKeepAlives: true}}
+			resp, err := c.Get(dasar + "/api/sesi")
+			if err != nil {
+				continue
+			}
+			var s struct {
+				Boot string `json:"boot"`
+			}
+			json.NewDecoder(resp.Body).Decode(&s)
+			resp.Body.Close()
+			if s.Boot != "" && s.Boot != sesi.Boot {
+				baruBoot = s.Boot
+				break
+			}
+		}
+		if baruBoot == "" {
+			t.Fatal("aplikasi tidak dimulai ulang dalam 30 detik setelah ganti zona")
+		}
+		k4 := baru(t)
+		k4.do("POST", "/api/login", map[string]string{"password": pwBaru}, 200, nil)
+		var st struct {
+			ZonaWaktu string `json:"zonaWaktu"`
+		}
+		k4.do("GET", "/api/status", nil, 200, &st)
+		if st.ZonaWaktu != "WITA" {
+			t.Fatalf("zona setelah restart = %q, mau WITA", st.ZonaWaktu)
+		}
+	})
 }

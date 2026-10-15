@@ -1,3 +1,8 @@
+/** Ambil bagian path saja (tanpa query/hash) dari alamat relatif atau penuh. */
+export function pathDari(ke: string): string {
+  return new URL(ke, location.origin).pathname
+}
+
 export const rute = $state({ path: location.pathname })
 
 window.addEventListener('popstate', () => {
@@ -5,9 +10,9 @@ window.addEventListener('popstate', () => {
 })
 
 export function pindah(ke: string) {
-  if (ke === location.pathname) return
+  if (ke === location.pathname + location.search) return
   history.pushState(null, '', ke)
-  rute.path = ke
+  rute.path = pathDari(ke)
   window.scrollTo(0, 0)
 }
 

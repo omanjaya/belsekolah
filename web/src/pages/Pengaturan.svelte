@@ -6,7 +6,8 @@
   import Medan from '../components/Medan.svelte'
   import Memuat from '../components/Memuat.svelte'
   import GalatMuat from '../components/GalatMuat.svelte'
-  import { api, type Audio, type Pengaturan, type Profil, type Sesi, type Sistem } from '../lib/api'
+  import { api, type Audio, type Pengaturan, type Profil, type Sistem } from '../lib/api'
+  import { bacaBoot, tungguMulaiUlang } from '../lib/mulaiUlang'
   import { beriTahu, galat } from '../lib/notif.svelte'
   import { konfirmasi } from '../lib/konfirmasi.svelte'
   import { formatJam, offsetDariISO } from '../lib/format'
@@ -40,7 +41,20 @@
   let berkas = $state<File | null>(null)
   let restoreSibuk = $state(false)
   let memulaiUlang = $state(false)
-  let keluarSibuk = $state(false)
+  let overlayMulai = $state<HTMLElement>()
+  $effect(() => {
+    if (memulaiUlang) overlayMulai?.focus()
+  })
+  let mulaiMode = $state<'restore' | 'zona'>('restore')
+
+  const zonaPilihan = [
+    { kode: 'WIB', nama: 'WIB — Waktu Indonesia Barat (Jawa, Sumatra, Kalimantan Barat & Tengah)' },
+    { kode: 'WITA', nama: 'WITA — Waktu Indonesia Tengah (Bali, NTB, NTT, Sulawesi, Kalimantan Selatan, Timur & Utara)' },
+    { kode: 'WIT', nama: 'WIT — Waktu Indonesia Timur (Maluku, Papua)' },
+  ]
+  let zona = $state('WIB')
+  let zonaTermuat = $state('WIB')
+  let zonaSibuk = $state(false)
 
   async function muatSuara() {
     memuatSuara = true
@@ -55,6 +69,8 @@
       profilId = p.profilDefaultId
       profilTermuat = p.profilDefaultId
       volumeTermuat = p.volume
+      zona = p.zonaWaktu
+      zonaTermuat = p.zonaWaktu
       profil = pr
       audio = a
     } catch {
@@ -153,37 +169,10 @@
     beriTahu('Alamat disalin')
   }
 
-  /** Ambil boot dari /api/sesi; null bila gagal, bukan 200, atau tanpa boot. */
-  async function bacaBoot(): Promise<string | null> {
-    const ac = new AbortController()
-    const t = setTimeout(() => ac.abort(), 5000)
-    try {
-      const res = await fetch('/api/sesi', { signal: ac.signal })
-      if (res.status !== 200) return null
-      const j = (await res.json()) as Sesi
-      return j.boot || null
-    } catch {
-      return null // galat jaringan wajar saat aplikasi memulai ulang
-    } finally {
-      clearTimeout(t)
-    }
-  }
-
-  const tidur = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
   async function tungguHidup(bootLama: string | null) {
     tungguHabis = false
-    const batas = Date.now() + 120_000
-    await tidur(2000)
-    while (!batal && Date.now() < batas) {
-      const b = await bacaBoot()
-      if (b && b !== bootLama) {
-        if (!batal) location.reload()
-        return
-      }
-      await tidur(2000)
-    }
-    if (!batal) tungguHabis = true
+    const ok = await tungguMulaiUlang(bootLama, { batal: () => batal })
+    if (!ok && !batal) tungguHabis = true
   }
 
   async function pulihkan() {
@@ -200,6 +189,7 @@
       const fd = new FormData()
       fd.append('file', berkas)
       await api.post('/restore', fd)
+      mulaiMode = 'restore'
       memulaiUlang = true
       void tungguHidup(bootLama)
     } catch (e) {
@@ -209,14 +199,30 @@
     }
   }
 
-  async function keluar() {
-    keluarSibuk = true
+  async function simpanZona() {
+    const ya = await konfirmasi(
+      'Ganti zona waktu?',
+      'Aplikasi akan dimulai ulang (±2 detik). Bel yang jatuh tepat saat itu bisa terlewat.',
+      'Ganti zona',
+    )
+    if (!ya) return
+    zonaSibuk = true
     try {
-      await api.post('/logout')
-      location.reload()
+      const bootLama = await bacaBoot()
+      const kini = await api.get<Pengaturan>('/pengaturan')
+      const hasil = await api.put<Pengaturan>('/pengaturan', { ...kini, zonaWaktu: zona })
+      if (hasil?.mulaiUlang) {
+        mulaiMode = 'zona'
+        memulaiUlang = true
+        void tungguHidup(bootLama)
+      } else {
+        zonaTermuat = zona
+        beriTahu('Zona waktu disimpan')
+      }
     } catch (e) {
       galat(e)
-      keluarSibuk = false
+    } finally {
+      zonaSibuk = false
     }
   }
 
@@ -243,30 +249,63 @@
   )
 </script>
 
-<JudulHalaman judul="Pengaturan" keterangan="Suara, keamanan, dan perawatan aplikasi." />
+<JudulHalaman judul="Pengaturan" keterangan="Suara, zona waktu, keamanan, dan perawatan aplikasi." />
 
-<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+<div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
     <Kartu>
-      <h2 class="mb-3 text-lg font-semibold">Suara</h2>
+      <h2 class="mb-3 text-lg font-semibold">Volume</h2>
       {#if memuatSuara}
         <Memuat />
       {:else if galatSuara}
         <GalatMuat pesan="Pengaturan gagal dimuat" oncoba={muatSuara} />
       {:else}
-      <div class="flex flex-col gap-4">
-        <Medan label="Volume: {volume}%" untuk="pg-volume">
-          <input id="pg-volume" type="range" min="0" max="100" step="1" bind:value={volume} class="h-11 w-full accent-blue-700" />
-        </Medan>
-        <Medan label="Profil default" untuk="pg-profil">
-          <select id="pg-profil" bind:value={profilId} class={input}>
-            {#each profil as p (p.id)}<option value={p.id}>{p.nama}</option>{/each}
-          </select>
-        </Medan>
-        <div class="flex flex-wrap gap-2">
-          <Tombol onclick={simpan} sibuk={simpanSibuk} disabled={galatSuara || memuatSuara}>Simpan pengaturan</Tombol>
-          <Tombol varian="kedua" onclick={tes} sibuk={tesSibuk} disabled={galatSuara || memuatSuara}>Tes volume</Tombol>
+        <div class="flex flex-col gap-4">
+          <Medan label="Volume: {volume}%" untuk="pg-volume">
+            <input id="pg-volume" type="range" min="0" max="100" step="1" bind:value={volume} class="h-11 w-full accent-blue-700" />
+          </Medan>
+          <div class="flex flex-wrap gap-2">
+            <Tombol onclick={simpan} sibuk={simpanSibuk}>Simpan pengaturan</Tombol>
+            <Tombol varian="kedua" onclick={tes} sibuk={tesSibuk}>Tes volume</Tombol>
+          </div>
         </div>
-      </div>
+      {/if}
+    </Kartu>
+
+    <Kartu>
+      <h2 class="mb-3 text-lg font-semibold">Zona waktu</h2>
+      {#if memuatSuara}
+        <Memuat />
+      {:else if galatSuara}
+        <GalatMuat pesan="Pengaturan gagal dimuat" oncoba={muatSuara} />
+      {:else}
+        <fieldset class="flex flex-col gap-2">
+          <legend class="sr-only">Zona waktu</legend>
+          {#each zonaPilihan as z (z.kode)}
+            <label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-xl px-2 py-2 hover:bg-slate-50">
+              <input type="radio" name="zona-waktu" value={z.kode} bind:group={zona} class="mt-1 size-5 accent-blue-700" />
+              <span>{z.nama}</span>
+            </label>
+          {/each}
+        </fieldset>
+        <div class="mt-3"><Tombol onclick={simpanZona} sibuk={zonaSibuk} disabled={zona === zonaTermuat}>Simpan zona</Tombol></div>
+      {/if}
+    </Kartu>
+
+    <Kartu>
+      <h2 class="mb-3 text-lg font-semibold">Profil default</h2>
+      {#if memuatSuara}
+        <Memuat />
+      {:else if galatSuara}
+        <GalatMuat pesan="Pengaturan gagal dimuat" oncoba={muatSuara} />
+      {:else}
+        <div class="flex flex-col gap-4">
+          <Medan label="Profil default" untuk="pg-profil">
+            <select id="pg-profil" bind:value={profilId} class={input}>
+              {#each profil as p (p.id)}<option value={p.id}>{p.nama}</option>{/each}
+            </select>
+          </Medan>
+          <div><Tombol onclick={simpan} sibuk={simpanSibuk}>Simpan profil</Tombol></div>
+        </div>
       {/if}
     </Kartu>
 
@@ -298,7 +337,7 @@
           <dt class="text-slate-600">Versi</dt>
           <dd class="break-words font-medium">{sistem.versi}</dd>
           <dt class="text-slate-600">Zona waktu</dt>
-          <dd class="break-words font-medium">{sistem.zonaWaktu}</dd>
+          <dd class="break-words font-medium">{sistem.zonaWaktu} ({sistem.zonaIana})</dd>
           <dt class="text-slate-600">Jam server</dt>
           <dd class="font-medium tabular-nums">{formatJam(Date.parse(sistem.sekarang), offsetDariISO(sistem.sekarang))}</dd>
           <dt class="text-slate-600">Sinkron jam</dt>
@@ -350,18 +389,14 @@
     </Kartu>
   </div>
 
-  <div class="mt-6">
-    <Tombol varian="kedua" onclick={keluar} sibuk={keluarSibuk}>Keluar</Tombol>
-  </div>
-
 {#if memulaiUlang}
-  <div class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-white/95 px-6 text-center" role="alertdialog" aria-live="assertive" aria-label="Memulai ulang aplikasi">
+  <div bind:this={overlayMulai} tabindex="-1" class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-white/95 px-6 text-center outline-none" role="alertdialog" aria-modal="true" aria-live="assertive" aria-label={mulaiMode === 'zona' ? 'Menerapkan zona waktu' : 'Memulai ulang aplikasi'}>
     <span class="size-10 {tungguHabis ? 'hidden' : 'animate-spin'} rounded-full border-4 border-blue-700 border-t-transparent" aria-hidden="true"></span>
     {#if tungguHabis}
-      <p class="text-xl font-semibold text-slate-900">Aplikasi belum menyala kembali. Periksa mini PC, lalu muat ulang halaman ini.</p>
+      <p class="text-xl font-semibold text-slate-900">{mulaiMode === 'zona' ? 'Aplikasi belum kembali. Muat ulang halaman sebentar lagi.' : 'Aplikasi belum menyala kembali. Periksa mini PC, lalu muat ulang halaman ini.'}</p>
       <Tombol onclick={() => location.reload()}>Muat ulang</Tombol>
     {:else}
-      <p class="text-xl font-semibold text-slate-900">Memulai ulang aplikasi…</p>
+      <p class="text-xl font-semibold text-slate-900">{mulaiMode === 'zona' ? 'Menerapkan zona waktu…' : 'Memulai ulang aplikasi…'}</p>
       <p class="text-slate-600">Mohon tunggu, halaman akan dimuat ulang otomatis.</p>
     {/if}
   </div>

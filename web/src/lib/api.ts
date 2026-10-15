@@ -50,7 +50,7 @@ export const api = {
 }
 
 export interface Sesi { masuk: boolean; wajibGantiPassword: boolean; boot?: string }
-export interface Profil { id: number; nama: string }
+export interface Profil { id: number; nama: string; jumlahBel?: number }
 export interface JenisBel { id: number; nama: string; warna: string; audioIds: number[] }
 export interface Audio {
   id: number; nama: string; sumber: 'bawaan' | 'upload' | 'tts'; durasiMs: number
@@ -71,13 +71,64 @@ export interface BelHariIni {
 export interface Status {
   sekarang: string; tanggal: string; hari: number; profil: Profil | null; libur: Libur | null
   bel: BelHariIni[]; berikutnya: BelHariIni | null; peringatan: string[]
+  zonaWaktu: string
 }
-export interface Pengaturan { volume: number; profilDefaultId: number }
+export interface Pengaturan {
+  volume: number; profilDefaultId: number; zonaWaktu: 'WIB' | 'WITA' | 'WIT' | string; mulaiUlang?: boolean
+}
 export interface Sistem {
-  versi: string; zonaWaktu: string; sekarang: string; ip: string[]; ntp: boolean | null
+  versi: string; zonaWaktu: string; zonaIana: string; sekarang: string; ip: string[]; ntp: boolean | null
   boot?: string
   alat?: { mpv: boolean; ffprobe: boolean; edgeTts: boolean }
   ruangKosongMb?: number
   backupTerakhir?: string
 }
 export interface SuaraTTS { id: string; nama: string }
+
+export interface FileJadwal {
+  format: 'belsekolah-jadwal'; versi: 1; nama: string
+  jenisBel: { nama: string; warna: string }[]
+  jadwal: { hari: number; jam: string; jenisBel: string; label: string }[]
+}
+export interface HasilPeriksa { nama: string; jumlahBel: number; jenisBelTakDikenal: string[]; namaTersedia: string }
+export type Pemetaan = Record<string, { jenisBelId: number } | { baru: true }>
+export interface Template { id: number; nama: string; jumlahBel: number; hari: number[]; dibuat: string; data?: FileJadwal }
+export interface ParameterPembuat {
+  jenjang: 'SD' | 'SMP' | 'SMA'; varian: 'normal' | 'ramadan' | 'ujian'; hariSekolah: 5 | 6
+  jamMasuk: string; lamaJP: number; jumlahJP: number; jumlahJPJumat: number; jumlahJPSabtu: number
+  istirahat: { setelahJP: number; menit: number }[]
+  upacaraSenin: { aktif: boolean; menit: number }
+  kegiatanJumat: { aktif: boolean; menit: number; label: string }
+  ujian: { jamMulai: string; jumlahSesi: number; lamaSesi: number; jeda: number }
+}
+
+/** Unduh file dari API (mis. ekspor jadwal); nama file dari Content-Disposition. */
+export async function unduh(path: string): Promise<void> {
+  let res: Response
+  try {
+    res = await fetch('/api' + path)
+  } catch {
+    throw new ApiError(0, 'Tidak bisa terhubung ke server bel. Periksa jaringan WiFi.')
+  }
+  if (res.status === 401) saatTidakMasuk()
+  if (!res.ok) {
+    let pesan = `Terjadi kesalahan (${res.status})`
+    try {
+      const j = await res.json()
+      if (j && typeof j.error === 'string') pesan = j.error
+    } catch {
+      /* bukan JSON */
+    }
+    throw new ApiError(res.status, pesan)
+  }
+  const cd = res.headers.get('Content-Disposition') ?? ''
+  const nama = cd.match(/filename="([^"]+)"/)?.[1] ?? 'unduhan.json'
+  const url = URL.createObjectURL(await res.blob())
+  const a = document.createElement('a')
+  a.href = url
+  a.download = nama
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}

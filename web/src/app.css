@@ -7,3 +7,13 @@
 html {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* Panel geser: masuk dari kanan (<=200ms), dimatikan bila pengguna meminta gerak berkurang. */
+@keyframes panel-masuk {
+  from { transform: translateX(2rem); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.panel-geser[open] { animation: panel-masuk 180ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .panel-geser[open] { animation: none; }
+}

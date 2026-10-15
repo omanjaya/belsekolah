@@ -1,22 +1,20 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { Pencil, Trash2 } from '@lucide/svelte'
   import { api, type Libur, type Status } from '../lib/api'
   import { formatRentang } from '../lib/format'
   import { beriTahu, galat } from '../lib/notif.svelte'
   import { konfirmasi } from '../lib/konfirmasi.svelte'
   import JudulHalaman from '../components/JudulHalaman.svelte'
-  import Kartu from '../components/Kartu.svelte'
-  import Kosong from '../components/Kosong.svelte'
+  import BarAlat from '../components/BarAlat.svelte'
+  import Tabel from '../components/Tabel.svelte'
   import Memuat from '../components/Memuat.svelte'
   import GalatMuat from '../components/GalatMuat.svelte'
-  import Modal from '../components/Modal.svelte'
+  import PanelGeser from '../components/PanelGeser.svelte'
   import Medan from '../components/Medan.svelte'
   import Tombol from '../components/Tombol.svelte'
 
   const kelasInput =
     'min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20'
-  const kelasIkon = 'inline-grid size-11 place-items-center rounded-lg text-slate-700 hover:bg-slate-100'
 
   let memuat = $state(true)
   let daftar = $state<Libur[]>([])
@@ -40,6 +38,7 @@
 
   const akanDatang = $derived(daftar.filter((l) => l.selesai >= hariIni).sort((a, b) => a.mulai.localeCompare(b.mulai)))
   const sudahLewat = $derived(daftar.filter((l) => l.selesai < hariIni).sort((a, b) => b.mulai.localeCompare(a.mulai)))
+  const urut = $derived([...akanDatang, ...sudahLewat])
 
   let buka = $state(false)
   let editId = $state(0)
@@ -90,58 +89,43 @@
   }
 </script>
 
-{#snippet baris(l: Libur)}
-  <li class="flex items-center gap-2 py-2">
-    <div class="min-w-0 flex-1">
-      <p class="font-medium">{formatRentang(l.mulai, l.selesai)}</p>
-      {#if l.keterangan}<p class="break-words text-sm text-slate-600">{l.keterangan}</p>{/if}
-    </div>
-    <button type="button" class={kelasIkon} aria-label="Ubah {l.keterangan || formatRentang(l.mulai, l.selesai)}" onclick={() => bukaForm(l)}>
-      <Pencil class="size-5" aria-hidden="true" />
-    </button>
-    <button type="button" class="{kelasIkon} text-red-700" aria-label="Hapus {l.keterangan || formatRentang(l.mulai, l.selesai)}" onclick={() => hapus(l)}>
-      <Trash2 class="size-5" aria-hidden="true" />
-    </button>
-  </li>
-{/snippet}
-
-<JudulHalaman judul="Libur" keterangan="Pada tanggal libur tidak ada bel terjadwal.">
-  {#snippet aksi()}
-    <Tombol onclick={() => bukaForm()}>Tambah libur</Tombol>
-  {/snippet}
-</JudulHalaman>
+<JudulHalaman judul="Libur" keterangan="Pada tanggal libur tidak ada bel terjadwal." />
 
 {#if memuat}
   <Memuat />
 {:else if galatMuat}
   <GalatMuat pesan={galatMuat} oncoba={muat} />
 {:else}
-  <div class="flex flex-col gap-5">
-    <Kartu>
-      <h2 class="mb-3 text-lg font-semibold">Akan datang</h2>
-      {#if akanDatang.length === 0}
-        <Kosong pesan="Belum ada libur yang akan datang" />
-      {:else}
-        <ul class="divide-y divide-slate-200">
-          {#each akanDatang as l (l.id)}{@render baris(l)}{/each}
-        </ul>
-      {/if}
-    </Kartu>
+  <BarAlat>
+    {#snippet kanan()}
+      <Tombol onclick={() => bukaForm()}>+ Tambah libur</Tombol>
+    {/snippet}
+  </BarAlat>
 
-    {#if sudahLewat.length > 0}
-      <Kartu>
-        <details>
-          <summary class="flex min-h-11 cursor-pointer items-center text-lg font-semibold">Sudah lewat ({sudahLewat.length})</summary>
-          <ul class="divide-y divide-slate-200">
-            {#each sudahLewat as l (l.id)}{@render baris(l)}{/each}
-          </ul>
-        </details>
-      </Kartu>
-    {/if}
-  </div>
+  <Tabel label="Daftar libur" jumlah={urut.length} kosong="Belum ada libur">
+    {#snippet kepala()}
+      <th scope="col">Tanggal</th>
+      <th scope="col">Keterangan</th>
+      <th scope="col" class="text-right">Aksi</th>
+    {/snippet}
+    {#each urut as l (l.id)}
+      {@const lewat = l.selesai < hariIni}
+      <tr class={lewat ? 'text-slate-500' : ''}>
+        <td class="font-medium whitespace-nowrap">
+          {formatRentang(l.mulai, l.selesai)}
+          {#if lewat}<span class="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal text-slate-600">Sudah lewat</span>{/if}
+        </td>
+        <td class="break-words">{l.keterangan || '-'}</td>
+        <td class="text-right whitespace-nowrap">
+          <button type="button" class="min-h-11 rounded-lg px-3 text-slate-700 hover:bg-slate-100" aria-label="Ubah {l.keterangan || formatRentang(l.mulai, l.selesai)}" onclick={() => bukaForm(l)}>Ubah</button>
+          <button type="button" class="min-h-11 rounded-lg px-3 text-red-700 hover:bg-red-50" aria-label="Hapus {l.keterangan || formatRentang(l.mulai, l.selesai)}" onclick={() => hapus(l)}>Hapus</button>
+        </td>
+      </tr>
+    {/each}
+  </Tabel>
 {/if}
 
-<Modal bind:buka judul={editId ? 'Ubah libur' : 'Tambah libur'}>
+<PanelGeser bind:buka judul={editId ? 'Ubah libur' : 'Tambah libur'}>
   <form id="form-libur" class="flex flex-col gap-3" onsubmit={simpan}>
     <label class="flex min-h-11 items-center gap-3 text-base">
       <input type="checkbox" class="size-5 accent-blue-700" bind:checked={satuHari} onchange={() => { if (!satuHari && fSelesai < fMulai) fSelesai = fMulai }} />
@@ -166,4 +150,4 @@
     <Tombol varian="kedua" onclick={() => (buka = false)}>Batal</Tombol>
     <Tombol type="submit" form="form-libur" {sibuk}>Simpan</Tombol>
   {/snippet}
-</Modal>
+</PanelGeser>

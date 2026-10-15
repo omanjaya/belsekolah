@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"belsekolah/internal/formatjadwal"
 	"belsekolah/internal/store"
 )
 
@@ -38,9 +39,12 @@ func bacaJSON(w http.ResponseWriter, r *http.Request, v any) bool {
 // tulisErrorData memetakan error store ke kode HTTP.
 func (s *server) tulisErrorData(w http.ResponseWriter, err error) {
 	var v *store.ErrorValidasi
+	var f *formatjadwal.ErrorValidasi
 	switch {
 	case errors.As(err, &v):
 		tulisError(w, http.StatusBadRequest, v.Pesan)
+	case errors.As(err, &f):
+		tulisError(w, http.StatusBadRequest, f.Pesan)
 	case errors.Is(err, store.ErrTidakAda):
 		tulisError(w, http.StatusNotFound, "data tidak ditemukan")
 	case errors.Is(err, store.ErrDipakai), errors.Is(err, store.ErrDuplikat), errors.Is(err, store.ErrPeriodeTumpangTindih):

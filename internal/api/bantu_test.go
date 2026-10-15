@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -160,7 +161,7 @@ func siapkan(t *testing.T) *lingkungan {
 
 	h := New(Deps{
 		Store: st, Auth: au, Penjadwal: l.penjadwal, Pemutar: l.pemutar,
-		DataDir: l.dataDir, AudioDir: l.audioDir, Versi: "uji",
+		DataDir: l.dataDir, AudioDir: l.audioDir, Versi: "uji", Zona: "Asia/Jakarta",
 		Web:    fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>Bel</title>")}, "app.js": {Data: []byte("js")}},
 		Log:    slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Now:    func() time.Time { return l.now },
@@ -264,6 +265,14 @@ func pesanError(t *testing.T, resp *http.Response) string {
 }
 
 func berisi(s, sub string) bool { return strings.Contains(s, sub) }
+
+func itoa(n int64) string { return strconv.FormatInt(n, 10) }
+
+// unggahRestore mengirim isi sebagai file backup.zip ke POST /api/restore.
+func unggahRestore(t *testing.T, l *lingkungan, c *http.Client, isi []byte) *http.Response {
+	t.Helper()
+	return unggah(t, c, l.srv.URL+"/api/restore", "", "backup.zip", isi)
+}
 
 func storeRiwayat(l *lingkungan, status string) store.Riwayat {
 	return store.Riwayat{Waktu: l.now, Label: "Uji", Sumber: store.SumberManual, Status: status}

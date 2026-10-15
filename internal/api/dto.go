@@ -3,13 +3,15 @@ package api
 import (
 	"time"
 
+	"belsekolah/internal/formatjadwal"
 	"belsekolah/internal/schedule"
 	"belsekolah/internal/store"
 )
 
 type profilDTO struct {
-	ID   int64  `json:"id"`
-	Nama string `json:"nama"`
+	ID        int64  `json:"id"`
+	Nama      string `json:"nama"`
+	JumlahBel int    `json:"jumlahBel"`
 }
 
 type jenisBelRingkasDTO struct {
@@ -88,16 +90,20 @@ type statusDTO struct {
 	Bel        []belHariIniDTO `json:"bel"`
 	Berikutnya *belHariIniDTO  `json:"berikutnya"`
 	Peringatan []string        `json:"peringatan"`
+	ZonaWaktu  string          `json:"zonaWaktu"`
 }
 
 type pengaturanDTO struct {
-	Volume          int   `json:"volume"`
-	ProfilDefaultID int64 `json:"profilDefaultId"`
+	Volume          int    `json:"volume"`
+	ProfilDefaultID int64  `json:"profilDefaultId"`
+	ZonaWaktu       string `json:"zonaWaktu"`
+	MulaiUlang      bool   `json:"mulaiUlang,omitempty"`
 }
 
 type sistemDTO struct {
 	Versi     string    `json:"versi"`
 	ZonaWaktu string    `json:"zonaWaktu"`
+	ZonaIana  string    `json:"zonaIana"`
 	Sekarang  time.Time `json:"sekarang"`
 	IP        []string  `json:"ip"`
 	NTP       *bool     `json:"ntp"`
@@ -148,4 +154,22 @@ func (d liburDTO) keLibur() schedule.Libur {
 func keRiwayatDTO(r store.Riwayat) riwayatDTO {
 	return riwayatDTO{ID: r.ID, Waktu: r.Waktu, JadwalID: r.JadwalID, JenisBelID: r.JenisBelID,
 		Label: r.Label, Sumber: r.Sumber, Status: r.Status, Pesan: r.Pesan}
+}
+
+type templateDTO struct {
+	ID        int64              `json:"id"`
+	Nama      string             `json:"nama"`
+	JumlahBel int                `json:"jumlahBel"`
+	Hari      []int              `json:"hari"`
+	Dibuat    time.Time          `json:"dibuat"`
+	Data      *formatjadwal.Data `json:"data,omitempty"`
+}
+
+func keTemplateDTO(t store.Template, denganData bool) templateDTO {
+	out := templateDTO{ID: t.ID, Nama: t.Nama, JumlahBel: len(t.Data.Jadwal), Hari: t.Data.HariBerisi(), Dibuat: t.Dibuat}
+	if denganData {
+		d := t.Data
+		out.Data = &d
+	}
+	return out
 }
