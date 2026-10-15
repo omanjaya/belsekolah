@@ -1,9 +1,11 @@
 <script lang="ts">
   import { untrack } from 'svelte'
-  import { api, type FileJadwal, type HasilPeriksa, type JenisBel, type Pemetaan } from '../lib/api'
+  import { api, type FileJadwal, type HasilPeriksa, type JenisBel } from '../lib/api'
   import { beriTahu } from '../lib/notif.svelte'
+  import { BARU_JENIS, kePemetaan } from '../lib/tambahBanyak'
   import PanelGeser from './PanelGeser.svelte'
   import Medan from './Medan.svelte'
+  import PemetaanJenis from './PemetaanJenis.svelte'
   import Tombol from './Tombol.svelte'
 
   let { buka = $bindable(false), data, namaAwal, judul = 'Impor jadwal', onselesai }: {
@@ -16,7 +18,6 @@
 
   const kelasInput =
     'min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20'
-  const BARU = 'baru'
 
   let memeriksa = $state(false)
   let hasil = $state<HasilPeriksa | null>(null)
@@ -48,7 +49,7 @@
       hasil = h
       jenisBel = jb
       nama = namaAwal ?? h.namaTersedia
-      pilihan = Object.fromEntries(h.jenisBelTakDikenal.map((n) => [n, BARU]))
+      pilihan = Object.fromEntries(h.jenisBelTakDikenal.map((n) => [n, BARU_JENIS]))
     } catch (e) {
       if (saya !== urutan) return
       pesanGalat = e instanceof Error ? e.message : String(e)
@@ -62,10 +63,7 @@
     if (!data || !hasil) return
     pesanGalat = ''
     sibuk = true
-    const pemetaan: Pemetaan = {}
-    for (const [n, v] of Object.entries(pilihan)) {
-      pemetaan[n] = v === BARU ? { baru: true } : { jenisBelId: Number(v) }
-    }
+    const pemetaan = kePemetaan(pilihan)
     try {
       const res = await api.post<{ profilId: number }>('/impor', { data, nama, pemetaan })
       buka = false
@@ -89,19 +87,7 @@
       </Medan>
       <p class="text-sm text-slate-700">{hasil.jumlahBel} bel</p>
       {#if hasil.jenisBelTakDikenal.length > 0}
-        <div class="flex flex-col gap-3">
-          <p class="text-sm text-slate-700">
-            Jenis bel berikut belum ada. Pilih jenis bel yang dipakai untuk masing-masing.
-          </p>
-          {#each hasil.jenisBelTakDikenal as n, i (n)}
-            <Medan label={n} untuk="impor-peta-{i}">
-              <select id="impor-peta-{i}" class={kelasInput} bind:value={pilihan[n]}>
-                <option value={BARU}>Buat jenis bel baru</option>
-                {#each jenisBel as j (j.id)}<option value={String(j.id)}>{j.nama}</option>{/each}
-              </select>
-            </Medan>
-          {/each}
-        </div>
+        <PemetaanJenis nama={hasil.jenisBelTakDikenal} {jenisBel} bind:pilihan awalanId="impor-peta" />
       {/if}
     {/if}
     {#if pesanGalat}
