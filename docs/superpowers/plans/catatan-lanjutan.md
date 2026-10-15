@@ -46,3 +46,12 @@ Temuan review yang sengaja ditunda. Tidak ada yang memblokir pemakaian; urut kir
 - Ringkasan sumber tampil di badan panel, bukan kaki panel.
 - Celah tes: API 400 untuk batas 1000 & tujuan pemetaan tak ada (sudah diuji di store); pemetaan ke jenis yang ada mengubah klasifikasi; e2e tempel ulang & Kembali saat memeriksa; tes BatasTotal store lambat.
 - Kerapian: kelasInput tersalin di beberapa komponen; FormPembuat tanpa nilai bawaan $bindable.
+
+## Pengumuman per bel (Rencana 9) — temuan kecil yang ditunda
+- PilihSuara: kata kunci cari tidak direset saat nilai berubah dari luar; galat tidak dibersihkan saat opsi diganti. IsiPengumuman: "Terapkan" tanpa penjaga urutan.
+- Jenis bel tanpa suara + pengumuman → hanya pengumuman yang diputar (tanpa nada cadangan).
+- Hitung pemakaian & DELETE audio tidak atomik (FK tetap menolak, pesan generik).
+- Kotak peringatan "Pengumuman tidak ditemukan" tersalin di AlurImpor & TambahBanyak.
+- Edit lalu kembalikan keterangan ke semula: nilai otomatis sebelumnya tetap, respons cocok yang sedang berjalan tak dibatalkan.
+- Celah tes: API pengumumanTakDitemukan pada periksa impor; StatusBel.PengumumanID lewat scheduler nyata; log galat scheduler; tes e2e memakai waitForTimeout untuk debounce; cabang "tingkat lebih baik menggantikan" di Cocokkan.
+- e2e Docker kadang macet ±1,5 menit saat beban mesin tinggi (bukan regresi; run ulang lulus).
