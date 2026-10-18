@@ -9,6 +9,9 @@
   import PanelGeser from '../components/PanelGeser.svelte'
   import Medan from '../components/Medan.svelte'
   import Tombol from '../components/Tombol.svelte'
+  import TombolDengar from '../components/TombolDengar.svelte'
+  import ProgresPutar from '../components/ProgresPutar.svelte'
+  import { pemutarSuara } from '../lib/pemutarSuara.svelte'
   import { api, type Audio, type SuaraTTS } from '../lib/api'
   import { formatDurasi } from '../lib/format'
   import { konfirmasi } from '../lib/konfirmasi.svelte'
@@ -62,53 +65,22 @@
     )
   })
 
-  // ---- Pemutar browser bersama ----
-  let pemutar = $state<HTMLAudioElement>()
-  let memutar = $state<string | null>(null) // 'a:<id>' atau 'pratinjau'
+  // ---- Pemutar: satu suara aktif sekaligus (browser atau speaker) ----
   let urlPratinjau = ''
-
-  function berhenti() {
-    pemutar?.pause()
-    memutar = null
-  }
-  async function putar(kunci: string, src: string) {
-    if (!pemutar) return
-    pemutar.src = src
-    memutar = kunci
-    try {
-      await pemutar.play()
-    } catch (e) {
-      if (e instanceof DOMException && e.name === 'AbortError') return
-      if (memutar === kunci) memutar = null
-      beriTahu('Browser tidak bisa memutar suara ini', 'galat')
-    }
-  }
-  const dengarkan = (a: Audio) => (memutar === `a:${a.id}` ? berhenti() : putar(`a:${a.id}`, `/api/audio/${a.id}/file`))
   function cabutPratinjau() {
     if (urlPratinjau) URL.revokeObjectURL(urlPratinjau)
     urlPratinjau = ''
   }
   onDestroy(() => {
-    pemutar?.pause()
+    // Suara di speaker dibiarkan selesai; suara di browser berhenti saat halaman ditinggal.
+    pemutarSuara.hentiBrowser()
     cabutPratinjau()
   })
 
-  // ---- Tes di speaker, hapus ----
-  let tesId = $state<number | null>(null)
-  async function tes(a: Audio) {
-    tesId = a.id
-    try {
-      await api.post(`/audio/${a.id}/tes`)
-      beriTahu('Suara diputar di speaker')
-    } catch (e) {
-      galat(e)
-    } finally {
-      tesId = null
-    }
-  }
+  // ---- Hapus ----
   async function hapus(a: Audio) {
     if (!(await konfirmasi('Hapus suara?', `Suara "${a.nama}" akan dihapus.`))) return
-    if (memutar === `a:${a.id}`) berhenti()
+    if (pemutarSuara.sedang(`a:${a.id}`)) pemutarSuara.henti()
     try {
       await api.hapus(`/audio/${a.id}`)
       beriTahu('Suara dihapus')
@@ -241,7 +213,7 @@
     ttsBuka = true
   }
   $effect(() => {
-    if (!ttsBuka && memutar === 'pratinjau') berhenti()
+    if (!ttsBuka && pemutarSuara.sedang('pratinjau')) pemutarSuara.henti()
   })
   let teks = $state('')
   let suaraTts = $state('')
@@ -261,7 +233,7 @@
       cabutPratinjau()
       if (!ttsBuka) return
       urlPratinjau = URL.createObjectURL(blob)
-      await putar('pratinjau', urlPratinjau)
+      await pemutarSuara.putarBrowser('pratinjau', urlPratinjau, 0, 'Pratinjau TTS')
     } catch (e) {
       galat(e)
     } finally {
@@ -287,8 +259,6 @@
 </script>
 
 <JudulHalaman judul="Pustaka Suara" keterangan="Suara yang bisa dipakai di jenis bel: bawaan, unggahan, dan hasil teks ke suara." />
-
-<audio bind:this={pemutar} onended={() => (memutar = null)} onerror={() => (memutar = null)} onpause={() => (memutar = null)} class="hidden"></audio>
 
 <BarAlat>
   {#snippet kiri()}
@@ -320,27 +290,23 @@
   <div class="hidden md:block">
   <Tabel label="Daftar suara" jumlah={tampil.length} kosong="Belum ada suara di kategori ini.">
     {#snippet kepala()}
+      <th scope="col" class="w-16"><span class="sr-only">Putar</span></th>
       <th scope="col">Nama</th>
       <th scope="col">Sumber</th>
       <th scope="col">Durasi</th>
-      <th scope="col">Putar di browser</th>
-      <th scope="col">Tes</th>
+      <th scope="col">Speaker</th>
       <th scope="col" class="text-right">Aksi</th>
     {/snippet}
     {#each tampil as a (a.id)}
-      {@const sedangMemutar = memutar === `a:${a.id}`}
-      <tr>
-        <td class="font-semibold break-words">{a.nama}</td>
+      <tr class="transition-colors {pemutarSuara.sedang(`a:${a.id}`) ? 'bg-blue-50/60' : ''}">
+        <td class="!pr-0"><TombolDengar kunci="a:{a.id}" nama={a.nama} mode="browser" src="/api/audio/{a.id}/file" durasiMs={a.durasiMs} /></td>
+        <td class="min-w-56">
+          <span class="font-semibold break-words">{a.nama}</span>
+          <ProgresPutar kunci="a:{a.id}" />
+        </td>
         <td><span class="rounded-full px-2 py-0.5 text-xs font-medium {GAYA_SUMBER[a.sumber]}">{NAMA_SUMBER[a.sumber]}</span></td>
         <td class="whitespace-nowrap tabular-nums text-slate-600">{formatDurasi(a.durasiMs)}</td>
-        <td>
-          <button type="button" class="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-slate-700 hover:bg-slate-100" onclick={() => dengarkan(a)} aria-label="{sedangMemutar ? 'Berhenti' : 'Putar'} {a.nama}">
-            {#if sedangMemutar}<Square class="size-4" /> Berhenti{:else}<Play class="size-4" /> Putar{/if}
-          </button>
-        </td>
-        <td>
-          <button type="button" class="min-h-11 rounded-lg px-3 text-slate-700 hover:bg-slate-100 disabled:opacity-50" disabled={tesId === a.id} onclick={() => tes(a)} aria-label="Tes di speaker {a.nama}">Tes</button>
-        </td>
+        <td><TombolDengar kunci="a:{a.id}" nama={a.nama} mode="speaker" src="/audio/{a.id}/tes" durasiMs={a.durasiMs} /></td>
         <td class="text-right whitespace-nowrap">
           {#if a.sumber !== 'bawaan'}
             <button type="button" class="min-h-11 rounded-lg px-3 text-slate-700 hover:bg-slate-100" onclick={() => bukaGantiNama(a)} aria-label="Ganti nama {a.nama}">Ganti nama</button>
@@ -359,18 +325,20 @@
 
   <ul class="flex flex-col gap-2 md:hidden" aria-label="Daftar suara">
     {#each tampil as a (a.id)}
-      {@const sedangMemutar = memutar === `a:${a.id}`}
-      <li class="rounded-xl border border-slate-200 bg-white p-3">
-        <p class="break-words font-semibold text-slate-900">{a.nama}</p>
-        <div class="mt-1 flex flex-wrap items-center gap-2 text-sm">
-          <span class="rounded-full px-2 py-0.5 text-xs font-medium {GAYA_SUMBER[a.sumber]}">{NAMA_SUMBER[a.sumber]}</span>
-          <span class="tabular-nums text-slate-500">{formatDurasi(a.durasiMs)}</span>
+      <li class="rounded-xl border bg-white p-3 transition-colors {pemutarSuara.sedang(`a:${a.id}`) ? 'border-blue-300 bg-blue-50/60' : 'border-slate-200'}">
+        <div class="flex items-start gap-3">
+          <TombolDengar kunci="a:{a.id}" nama={a.nama} mode="browser" src="/api/audio/{a.id}/file" durasiMs={a.durasiMs} />
+          <div class="min-w-0 flex-1">
+            <p class="break-words font-semibold text-slate-900">{a.nama}</p>
+            <div class="mt-1 flex flex-wrap items-center gap-2 text-sm">
+              <span class="rounded-full px-2 py-0.5 text-xs font-medium {GAYA_SUMBER[a.sumber]}">{NAMA_SUMBER[a.sumber]}</span>
+              <span class="tabular-nums text-slate-500">{formatDurasi(a.durasiMs)}</span>
+            </div>
+            <ProgresPutar kunci="a:{a.id}" />
+          </div>
         </div>
-        <div class="mt-2 flex flex-wrap gap-1">
-          <button type="button" class="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-slate-700 hover:bg-slate-100" onclick={() => dengarkan(a)} aria-label="{sedangMemutar ? 'Berhenti' : 'Putar'} {a.nama}">
-            {#if sedangMemutar}<Square class="size-4" /> Berhenti{:else}<Play class="size-4" /> Putar{/if}
-          </button>
-          <button type="button" class="min-h-11 rounded-lg px-3 text-slate-700 hover:bg-slate-100 disabled:opacity-50" disabled={tesId === a.id} onclick={() => tes(a)} aria-label="Tes di speaker {a.nama}">Tes</button>
+        <div class="mt-2 flex flex-wrap gap-1 border-t border-slate-100 pt-2">
+          <TombolDengar kunci="a:{a.id}" nama={a.nama} mode="speaker" src="/audio/{a.id}/tes" durasiMs={a.durasiMs} />
           {#if a.sumber !== 'bawaan'}
             <button type="button" class="min-h-11 rounded-lg px-3 text-slate-700 hover:bg-slate-100" onclick={() => bukaGantiNama(a)} aria-label="Ganti nama {a.nama}">Ganti nama</button>
           {/if}
@@ -444,8 +412,8 @@
     </Medan>
   </div>
   {#snippet aksi()}
-    <Tombol varian="kedua" sibuk={praBusy} disabled={simpanBusy || !!galatSuara} onclick={() => (memutar === 'pratinjau' ? berhenti() : pratinjau())}>
-      {#if memutar === 'pratinjau'}<Square class="size-4" /> Hentikan pratinjau{:else}<Play class="size-4" /> Dengarkan pratinjau{/if}
+    <Tombol varian="kedua" sibuk={praBusy} disabled={simpanBusy || !!galatSuara} onclick={() => (pemutarSuara.sedang('pratinjau') ? pemutarSuara.henti() : pratinjau())}>
+      {#if pemutarSuara.sedang('pratinjau')}<Square class="size-4" /> Hentikan pratinjau{:else}<Play class="size-4" /> Dengarkan pratinjau{/if}
     </Tombol>
     <Tombol sibuk={simpanBusy} disabled={praBusy || !!galatSuara} onclick={simpanTts}>Simpan suara</Tombol>
   {/snippet}

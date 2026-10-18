@@ -295,3 +295,15 @@ func TestUIDanAPITakDikenal(t *testing.T) {
 	harapKode(t, resp, 404)
 	pesanError(t, resp)
 }
+
+func TestTesStop(t *testing.T) {
+	l := siapkan(t)
+	harapKode(t, kirim(t, http.DefaultClient, "POST", l.srv.URL+"/api/tes/stop", nil), 401)
+	c := l.masuk(t)
+	harapKode(t, kirim(t, c, "POST", l.srv.URL+"/api/tes/stop", nil), 200)
+	l.pemutar.mu.Lock()
+	defer l.pemutar.mu.Unlock()
+	if l.pemutar.stopTes != 1 || l.pemutar.stop != 0 {
+		t.Fatalf("stopTes = %d, stop = %d; mau 1 dan 0", l.pemutar.stopTes, l.pemutar.stop)
+	}
+}

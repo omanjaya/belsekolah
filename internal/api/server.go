@@ -31,6 +31,7 @@ type Penjadwal interface {
 type Pemutar interface {
 	Play(req player.Permintaan)
 	Stop()
+	StopTes()
 	SetVolume(v int)
 }
 
@@ -110,6 +111,7 @@ func New(d Deps) http.Handler {
 	rute("POST /api/bel/manual", s.belManual)
 	rute("POST /api/bel/darurat", s.belDarurat)
 	rute("POST /api/bel/stop", s.belStop)
+	rute("POST /api/tes/stop", s.tesStop)
 	rute("GET /api/pengaturan", s.ambilPengaturan)
 	rute("PUT /api/pengaturan", s.ubahPengaturan)
 	rute("GET /api/sistem", s.sistem)

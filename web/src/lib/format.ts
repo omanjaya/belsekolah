@@ -72,3 +72,9 @@ export function tanggalHariIni(ms: number, offsetMenit: number): string {
   const t = geser(ms, offsetMenit)
   return `${t.getUTCFullYear()}-${dua(t.getUTCMonth() + 1)}-${dua(t.getUTCDate())}`
 }
+
+/** Posisi pemutaran dalam format m:ss, misalnya 0:07 atau 2:05. */
+export function formatWaktu(detik: number): string {
+  const total = Math.max(0, Math.floor(Number.isFinite(detik) ? detik : 0))
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}

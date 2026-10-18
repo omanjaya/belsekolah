@@ -126,3 +126,9 @@ func (s *server) belStop(w http.ResponseWriter, r *http.Request) {
 	s.Pemutar.Stop()
 	tulisPesan(w, http.StatusOK, "suara dihentikan")
 }
+
+// tesStop menghentikan tes suara di speaker tanpa menyentuh bel yang berjalan.
+func (s *server) tesStop(w http.ResponseWriter, r *http.Request) {
+	s.Pemutar.StopTes()
+	tulisPesan(w, http.StatusOK, "tes dihentikan")
+}

@@ -79,7 +79,14 @@ type fakePemutar struct {
 	mu      sync.Mutex
 	diputar []player.Permintaan
 	stop    int
+	stopTes int
 	volume  int
+}
+
+func (f *fakePemutar) StopTes() {
+	f.mu.Lock()
+	f.stopTes++
+	f.mu.Unlock()
 }
 
 func (f *fakePemutar) Play(r player.Permintaan) {

@@ -26,8 +26,9 @@ type Prioritas int
 const (
 	Biasa Prioritas = iota
 	Darurat
-	// Tes adalah pemutaran uji dari panel admin. Tidak pernah memotong apa pun,
-	// dan dibuang bila bel Biasa/Darurat datang agar bel asli tidak tertunda.
+	// Tes adalah pemutaran uji dari panel admin. Tes baru menggantikan tes
+	// sebelumnya, tetapi tidak pernah memotong bel; tes dibuang bila bel
+	// Biasa/Darurat datang agar bel asli tidak tertunda.
 	Tes
 )
 
@@ -86,22 +87,13 @@ func (p *Player) Play(req Permintaan) {
 			p.batal()
 		}
 	} else {
-		if req.Prioritas == Biasa {
-			// Tes tidak boleh menunda bel asli.
-			alasan = "dihentikan oleh bel"
-			sisa := p.antrean[:0:0]
-			for _, q := range p.antrean {
-				if q.Prioritas == Tes {
-					dibuang = append(dibuang, q)
-				} else {
-					sisa = append(sisa, q)
-				}
-			}
-			p.antrean = sisa
-			if p.batal != nil && p.sedang == Tes {
-				p.batal()
-			}
+		// Bel Biasa membuang tes agar bel asli tidak tertunda; tes baru
+		// menggantikan tes lama agar hanya satu tes yang terdengar.
+		alasan = "dihentikan oleh bel"
+		if req.Prioritas == Tes {
+			alasan = "diganti tes lain"
 		}
+		dibuang = p.buangTes()
 		p.antrean = append(p.antrean, req)
 	}
 	p.mu.Unlock()
@@ -123,6 +115,36 @@ func (p *Player) Stop() {
 	for _, d := range dibuang {
 		selesai(d, Dihentikan, "dihentikan oleh admin")
 	}
+}
+
+// StopTes menghentikan tes yang sedang diputar dan membuang tes di antrean.
+// Bel Biasa dan Darurat tidak tersentuh.
+func (p *Player) StopTes() {
+	p.mu.Lock()
+	dibuang := p.buangTes()
+	p.mu.Unlock()
+	for _, d := range dibuang {
+		selesai(d, Dihentikan, "dihentikan oleh admin")
+	}
+}
+
+// buangTes mengeluarkan semua tes dari antrean dan membatalkan tes yang sedang
+// diputar. Pemanggil memegang p.mu dan memanggil selesai untuk hasilnya.
+func (p *Player) buangTes() []Permintaan {
+	var dibuang []Permintaan
+	sisa := p.antrean[:0:0]
+	for _, q := range p.antrean {
+		if q.Prioritas == Tes {
+			dibuang = append(dibuang, q)
+		} else {
+			sisa = append(sisa, q)
+		}
+	}
+	p.antrean = sisa
+	if p.batal != nil && p.sedang == Tes {
+		p.batal()
+	}
+	return dibuang
 }
 
 // Jalankan memproses antrean sampai ctx selesai.

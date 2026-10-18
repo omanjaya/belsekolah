@@ -340,20 +340,15 @@ func TestBiasaMenghentikanTesYangSedangDiputar(t *testing.T) {
 	r := &fakeRunner{}
 	p, dir := mulai(t, r)
 	tes := buatFile(t, dir, "tes.wav")
-	tes2 := buatFile(t, dir, "tes2.wav")
 	bel := buatFile(t, dir, "bel.wav")
 	r.blokFile = tes[0]
 
 	chTes := putar(p, tes, Tes)
 	tungguDipanggil(t, r, "tes.wav")
-	chTes2 := putar(p, tes2, Tes) // antre di belakang tes pertama
 	chBel := putar(p, bel, Biasa)
 
 	if h := tunggu(t, chTes); h.status != Dihentikan {
 		t.Errorf("tes status = %s, mau dihentikan", h.status)
-	}
-	if h := tunggu(t, chTes2); h.status != Dihentikan {
-		t.Errorf("tes antre status = %s, mau dihentikan", h.status)
 	}
 	if h := tunggu(t, chBel); h.status != Berhasil {
 		t.Errorf("bel status = %s, mau berhasil", h.status)
@@ -391,5 +386,85 @@ func TestTesTidakMemotongBel(t *testing.T) {
 	}
 	if h := tunggu(t, chTes); h.status != Dihentikan {
 		t.Errorf("tes = %s", h.status)
+	}
+}
+
+func TestTesBaruMenggantikanTesLama(t *testing.T) {
+	r := &fakeRunner{}
+	p, dir := mulai(t, r)
+	tes1 := buatFile(t, dir, "tes1.wav")
+	tes2 := buatFile(t, dir, "tes2.wav")
+	r.blokFile = tes1[0]
+
+	ch1 := putar(p, tes1, Tes)
+	tungguDipanggil(t, r, "tes1.wav")
+	ch2 := putar(p, tes2, Tes)
+
+	if h := tunggu(t, ch1); h.status != Dihentikan {
+		t.Errorf("tes1 = %v, mau dihentikan", h)
+	}
+	if h := tunggu(t, ch2); h.status != Berhasil {
+		t.Errorf("tes2 status = %s, mau berhasil", h.status)
+	}
+}
+
+func TestTesBaruMembuangTesAntreTapiTidakBel(t *testing.T) {
+	r := &fakeRunner{}
+	p, dir := mulai(t, r)
+	bel := buatFile(t, dir, "bel.wav")
+	tes1 := buatFile(t, dir, "tes1.wav")
+	tes2 := buatFile(t, dir, "tes2.wav")
+	r.blokFile = bel[0]
+
+	chBel := putar(p, bel, Biasa)
+	tungguDipanggil(t, r, "bel.wav")
+	ch1 := putar(p, tes1, Tes)
+	ch2 := putar(p, tes2, Tes)
+
+	if h := tunggu(t, ch1); h.status != Dihentikan {
+		t.Errorf("tes1 antre = %s, mau dihentikan", h.status)
+	}
+	select {
+	case h := <-chBel:
+		t.Fatalf("bel terpotong oleh tes: %v", h)
+	default:
+	}
+	r.mu.Lock()
+	r.blokFile = ""
+	r.mu.Unlock()
+	p.Stop()
+	tunggu(t, chBel)
+	tunggu(t, ch2)
+}
+
+func TestStopTesHanyaMenghentikanTes(t *testing.T) {
+	r := &fakeRunner{}
+	p, dir := mulai(t, r)
+	tes := buatFile(t, dir, "tes.wav")
+	r.blokFile = tes[0]
+
+	chTes := putar(p, tes, Tes)
+	tungguDipanggil(t, r, "tes.wav")
+	p.StopTes()
+	if h := tunggu(t, chTes); h.status != Dihentikan {
+		t.Errorf("tes = %s, mau dihentikan", h.status)
+	}
+
+	bel := buatFile(t, dir, "bel.wav")
+	r.mu.Lock()
+	r.blokFile = bel[0]
+	r.mu.Unlock()
+	chBel := putar(p, bel, Biasa)
+	tungguDipanggil(t, r, "bel.wav")
+	p.StopTes()
+	time.Sleep(50 * time.Millisecond)
+	select {
+	case h := <-chBel:
+		t.Fatalf("StopTes menghentikan bel: %v", h)
+	default:
+	}
+	p.Stop()
+	if h := tunggu(t, chBel); h.status != Dihentikan {
+		t.Errorf("bel = %s", h.status)
 	}
 }

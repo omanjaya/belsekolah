@@ -8,6 +8,8 @@
   import { judulHalaman } from '../lib/judul.svelte'
   import { jamServer, mulaiDetak, perbaruiDariStatus, terakhirDiperbarui } from '../lib/jamServer.svelte'
   import { baca, tulis } from '../lib/simpan'
+  import BarPutar from './BarPutar.svelte'
+  import { pemutarSuara } from '../lib/pemutarSuara.svelte'
 
   let { children }: { children: Snippet } = $props()
   let lainnyaBuka = $state(false)
@@ -187,9 +189,10 @@
       </button>
     </header>
 
-    <main class="min-w-0 flex-1 p-4 pb-24 md:p-6">
+    <main class="min-w-0 flex-1 p-4 md:p-6 {pemutarSuara.aktif ? 'pb-48 md:pb-32' : 'pb-24'}">
       {@render children()}
     </main>
+    <BarPutar />
   </div>
 
   <!-- Bar bawah HP -->

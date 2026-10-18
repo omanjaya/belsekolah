@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  formatDurasi, formatJam, formatRentang, formatTanggal, formatTanggalPanjang,
+  formatDurasi, formatWaktu, formatJam, formatRentang, formatTanggal, formatTanggalPanjang,
   hariDariTanggal, hitungMundur, offsetDariISO, tanggalHariIni,
 } from './format'
 
@@ -40,5 +40,15 @@ describe('format', () => {
     expect(formatJam(ms, 480)).toBe('11:42:15')
     expect(tanggalHariIni(ms, 420)).toBe('2026-10-15')
     expect(tanggalHariIni(Date.parse('2026-10-15T23:30:00Z'), 420)).toBe('2026-10-16')
+  })
+})
+
+describe('formatWaktu', () => {
+  it('menulis m:ss dan aman untuk nilai aneh', () => {
+    expect(formatWaktu(0)).toBe('0:00')
+    expect(formatWaktu(7.9)).toBe('0:07')
+    expect(formatWaktu(125)).toBe('2:05')
+    expect(formatWaktu(-3)).toBe('0:00')
+    expect(formatWaktu(NaN)).toBe('0:00')
   })
 })

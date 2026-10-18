@@ -27,8 +27,25 @@ test('unggah, ganti nama, dengarkan, hapus suara', async ({ page, request }) => 
   const barisBaru = barisAtauKartu(page).filter({ hasText: nama + ' Baru' })
   await expect(barisBaru).toBeVisible()
 
+  // Putar di browser, lalu suara lain: yang pertama otomatis berhenti.
+  await barisBaru.getByRole('button', { name: 'Putar ' + nama + ' Baru' }).click()
+  await expect(barisBaru.getByRole('button', { name: 'Berhenti ' + nama + ' Baru' })).toBeVisible()
+  const dingDong = barisAtauKartu(page).filter({ hasText: 'Ding Dong Panjang' })
+  await page.getByRole('tab', { name: 'Semua' }).click()
+  await dingDong.getByRole('button', { name: 'Putar Ding Dong Panjang' }).click()
+  await expect(page.getByRole('button', { name: /^Berhenti / })).toHaveCount(1)
+  await expect(barisBaru.getByRole('button', { name: 'Putar ' + nama + ' Baru' })).toBeVisible()
+
+  // Tes di speaker menggantikan pemutaran browser dan bisa dihentikan dari bar.
   await barisBaru.getByRole('button', { name: 'Tes di speaker' }).click()
-  await expect(page.getByText('Suara diputar di speaker')).toBeVisible()
+  await expect(barisBaru.getByRole('button', { name: 'Hentikan speaker ' + nama + ' Baru' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Berhenti / })).toHaveCount(0)
+  const bar = page.getByRole('region', { name: 'Suara yang sedang diputar' })
+  await expect(bar).toContainText(nama + ' Baru')
+  const stop = page.waitForRequest((r) => r.url().endsWith('/api/tes/stop') && r.method() === 'POST')
+  await bar.getByRole('button', { name: 'Hentikan' }).click()
+  await stop
+  await expect(bar).toHaveCount(0)
 
   await barisBaru.getByRole('button', { name: 'Hapus' }).click()
   await page.getByRole('dialog', { name: 'Hapus suara?' }).getByRole('button', { name: 'Hapus' }).click()
