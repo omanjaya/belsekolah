@@ -82,6 +82,7 @@ web/               kode frontend Svelte 5 dan tes Playwright
 e2e/               tes end-to-end Go terhadap Docker
 deploy/            pemasang dan layanan systemd untuk mini PC
 scripts/           skrip e2e dan rilis
+pasang.sh          pemasang dari git clone (unduh rilis terbaru lalu install.sh)
 docs/superpowers/  spesifikasi dan rencana
 ```
 
@@ -92,7 +93,15 @@ docs/superpowers/  spesifikasi dan rencana
 
 ## Pemasangan di mini PC
 
-Panduan lengkap untuk operator: [PANDUAN-INSTAL.md](PANDUAN-INSTAL.md).
+Panduan lengkap untuk operator: [PANDUAN-INSTAL.md](PANDUAN-INSTAL.md). Singkatnya, di mini PC Debian 13:
+
+```
+sudo apt install -y git
+git clone https://github.com/omanjaya/belsekolah.git
+cd belsekolah && sudo ./pasang.sh
+```
+
+`pasang.sh` mengunduh paket rilis terbaru (termasuk pre-release) dari GitHub, memeriksa checksum, lalu menjalankan `install.sh`. Pembaruan: `git pull && sudo ./pasang.sh`.
 
 Untuk membuat paket rilis (amd64 dan arm64):
 

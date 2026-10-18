@@ -6,7 +6,7 @@ Panduan ini untuk operator sekolah. Ikuti langkahnya berurutan. Tidak perlu paha
 
 - Mini PC x86 dengan SSD dan RAM minimal 2 GB.
 - Kabel audio 3.5 mm ke input amplifier (AUX atau LINE IN).
-- Kabel LAN. Mini PC harus terhubung ke internet selama pemasangan (untuk apt dan pipx).
+- Kabel LAN (disarankan) atau WiFi. Mini PC harus terhubung ke internet selama pemasangan (untuk GitHub, apt, dan pipx). WiFi bisa disambungkan saat memasang Debian: pilih kartu jaringan berawalan `wl`, pilih nama WiFi, lalu masukkan password-nya.
 - Flashdisk minimal 4 GB.
 - Akses admin ke router sekolah.
 
@@ -45,25 +45,46 @@ Agar alamat mini PC tidak berganti, atur DHCP reservation di router.
 
 ## 5. Pasang aplikasi
 
-1. Dari komputer lain, salin paket ke mini PC:
+Pastikan mini PC terhubung ke internet (pemasang mengunduh paket lewat GitHub, apt, dan pipx).
+
+### Cara A: git clone (disarankan)
+
+Di mini PC (lewat SSH atau langsung di layar):
+
+```
+sudo apt install -y git
+git clone https://github.com/omanjaya/belsekolah.git
+cd belsekolah
+sudo ./pasang.sh
+```
+
+`pasang.sh` mengunduh paket rilis terbaru dari GitHub, memeriksa checksum-nya, lalu menjalankan `install.sh` dari paket itu. Untuk memasang versi tertentu, tambahkan `--versi v0.4.0`.
+
+### Cara B: salin paket rilis
+
+1. Unduh `belsekolah-<versi>-linux-amd64.tar.gz` dari halaman Releases GitHub, lalu salin ke mini PC dari komputer lain:
    `scp belsekolah-*-linux-amd64.tar.gz admin@192.168.1.50:`
 2. Di mini PC (lewat SSH), ekstrak dan masuk ke foldernya:
    ```
    tar xzf belsekolah-*-linux-amd64.tar.gz
    cd belsekolah-*-linux-amd64/
    ```
-3. Pastikan mini PC terhubung ke internet (pemasang mengunduh paket lewat apt dan pipx), lalu jalankan pemasang:
+3. Jalankan pemasang:
    ```
    sudo ./install.sh
    ```
-   Pilihan tambahan:
-   - `--tz Asia/Makassar` untuk WITA, atau `--tz Asia/Jayapura` untuk WIT. Tanpa pilihan ini zona waktunya WIB (`Asia/Jakarta`).
-   - `--hostname NAMA` untuk mengganti nama mini PC (bawaan: `bel`).
-   - `--perangkat-audio NAMA` untuk memilih keluaran suara (lihat bagian Pemecahan masalah).
 
-   Contoh: `sudo ./install.sh --tz Asia/Makassar`
+### Pilihan tambahan
 
-Menjalankan `install.sh` lagi aman. Zona waktu, nama host, dan perangkat audio yang lama tetap dipakai.
+Pilihan berikut berlaku untuk `pasang.sh` maupun `install.sh`:
+
+- `--tz Asia/Makassar` untuk WITA, atau `--tz Asia/Jayapura` untuk WIT. Tanpa pilihan ini zona waktunya WIB (`Asia/Jakarta`).
+- `--hostname NAMA` untuk mengganti nama mini PC (bawaan: `bel`).
+- `--perangkat-audio NAMA` untuk memilih keluaran suara (lihat bagian Pemecahan masalah).
+
+Contoh: `sudo ./pasang.sh --tz Asia/Makassar`
+
+Menjalankan `pasang.sh` atau `install.sh` lagi aman. Zona waktu, nama host, dan perangkat audio yang lama tetap dipakai.
 
 **Mengganti zona waktu setelah terpasang.** Zona waktu juga bisa diganti dari web: buka **Pengaturan**, pilih **Zona waktu** (WIB, WITA, atau WIT), lalu simpan. Aplikasi akan mulai ulang sendiri sekitar 2 detik, jadi halaman bisa terputus sebentar. Pilihan di web ini lebih diutamakan daripada `--tz` saat instal. Jam sistem Debian pada mini PC tidak ikut berubah; yang berubah hanya jam yang dipakai aplikasi untuk menjalankan bel.
 
@@ -116,8 +137,17 @@ Menu lain: **Suara** untuk suara bel (unggah file atau buat dari teks), **Riwaya
 
 ## 10. Pembaruan aplikasi
 
-1. Salin paket versi baru ke mini PC, lalu ekstrak (seperti langkah 5).
-2. Jalankan `sudo ./install.sh` lagi. Data jadwal tetap aman.
+Jika memasang dengan git clone (cara A):
+
+```
+cd ~/belsekolah
+git pull
+sudo ./pasang.sh
+```
+
+Jika memasang dari paket (cara B): salin paket versi baru ke mini PC, ekstrak, lalu jalankan `sudo ./install.sh` lagi.
+
+Data jadwal tetap aman di kedua cara.
 
 ## 11. Pemecahan masalah
 
@@ -126,7 +156,7 @@ Menu lain: **Suara** untuk suara bel (unggah file atau buat dari teks), **Riwaya
 1. Lihat daftar kartu suara: `aplay -l`.
 2. Lihat nama perangkat untuk aplikasi: `mpv --audio-device=help`.
 3. Pilih perangkat analog (keluaran jack 3.5 mm), lalu pasang ulang dengan nama itu. Contoh:
-   `sudo ./install.sh --perangkat-audio "alsa/plughw:CARD=PCH,DEV=0"`
+   `sudo ./pasang.sh --perangkat-audio "alsa/plughw:CARD=PCH,DEV=0"`
    Pilihan ini disimpan di `/etc/default/belsekolah` sebagai `BELSEKOLAH_MPV_DEVICE`.
 4. Jalankan `alsamixer`. Pastikan kanal tidak mute (tanda MM). Tekan `M` untuk membuka mute, panah atas untuk menaikkan volume.
 5. Periksa kabel dan input amplifier.
