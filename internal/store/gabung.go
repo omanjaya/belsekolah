@@ -32,6 +32,8 @@ type HasilPeriksaGabung struct {
 	JenisBelTakDikenal []string        `json:"jenisBelTakDikenal"`
 	Ringkasan          RingkasanGabung `json:"ringkasan"`
 	Baris              []BarisGabung   `json:"baris"`
+	// PengumumanTakDitemukan: nama suara pengumuman di file yang tidak ada di pustaka.
+	PengumumanTakDitemukan []string `json:"pengumumanTakDitemukan"`
 }
 
 type HasilGabung struct {
@@ -86,7 +88,11 @@ func (s *Store) PeriksaGabung(ctx context.Context, profilID int64, d formatjadwa
 	if err != nil {
 		return HasilPeriksaGabung{}, err
 	}
-	h := HasilPeriksaGabung{JenisBelTakDikenal: peta.takDikenal(d), Baris: []BarisGabung{}}
+	tak, err := s.PengumumanTakDikenal(ctx, d)
+	if err != nil {
+		return HasilPeriksaGabung{}, err
+	}
+	h := HasilPeriksaGabung{JenisBelTakDikenal: peta.takDikenal(d), Baris: []BarisGabung{}, PengumumanTakDitemukan: tak}
 	for _, b := range gabung.Klasifikasi(lama, masukDari(d, peta.idSementara(d, pemetaan))) {
 		asal := d.Jadwal[b.Indeks]
 		bg := BarisGabung{Hari: b.Hari, Jam: b.Jam, Status: b.Status,
@@ -121,6 +127,10 @@ func (s *Store) GabungJadwal(ctx context.Context, profilID int64, d formatjadwal
 	if err != nil {
 		return HasilGabung{}, err
 	}
+	suaraPeng, err := s.bacaPetaSuara(ctx)
+	if err != nil {
+		return HasilGabung{}, err
+	}
 	perluSuara, err := peta.periksaPemetaan(d, pemetaan)
 	if err != nil {
 		return HasilGabung{}, err
@@ -150,15 +160,19 @@ func (s *Store) GabungJadwal(ctx context.Context, profilID int64, d formatjadwal
 		return HasilGabung{}, validasi("profil akan berisi %d bel, melebihi batas %d bel", len(lama)+len(r.Tambah), formatjadwal.MaksBel)
 	}
 	for _, b := range r.Tambah {
+		asal := d.Jadwal[b.Indeks]
+		peng, _ := suaraPeng.resolusi(asal.Pengumuman, asal.Label)
 		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO jadwal (profil_id, hari, jam, jenis_bel_id, label) VALUES (?, ?, ?, ?, ?)`,
-			profilID, b.Hari, b.Jam, b.Baru.JenisBelID, b.Baru.Label); err != nil {
+			`INSERT INTO jadwal (profil_id, hari, jam, jenis_bel_id, label, pengumuman_audio_id) VALUES (?, ?, ?, ?, ?, ?)`,
+			profilID, b.Hari, b.Jam, b.Baru.JenisBelID, b.Baru.Label, nullID(peng)); err != nil {
 			return HasilGabung{}, terjemahkan(err, errRefJadwal)
 		}
 	}
 	for _, b := range r.Timpa {
-		if _, err := tx.ExecContext(ctx, `UPDATE jadwal SET jenis_bel_id = ?, label = ? WHERE id = ?`,
-			b.Baru.JenisBelID, b.Baru.Label, b.Lama.JadwalID); err != nil {
+		asal := d.Jadwal[b.Indeks]
+		peng, _ := suaraPeng.resolusi(asal.Pengumuman, asal.Label)
+		if _, err := tx.ExecContext(ctx, `UPDATE jadwal SET jenis_bel_id = ?, label = ?, pengumuman_audio_id = ? WHERE id = ?`,
+			b.Baru.JenisBelID, b.Baru.Label, nullID(peng), b.Lama.JadwalID); err != nil {
 			return HasilGabung{}, terjemahkan(err, errRefJadwal)
 		}
 	}

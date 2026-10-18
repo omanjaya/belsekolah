@@ -56,7 +56,9 @@ export interface Audio {
   id: number; nama: string; sumber: 'bawaan' | 'upload' | 'tts'; durasiMs: number
   teksTts?: string; suaraTts?: string; dibuat: string
 }
-export interface Jadwal { id: number; profilId: number; hari: number; jam: string; jenisBelId: number; label: string }
+export interface Jadwal { id: number; profilId: number; hari: number; jam: string; jenisBelId: number; label: string; pengumumanId: number | null }
+export interface SuaraRingkas { id: number; nama: string }
+export interface SaranPengumuman { jadwalId: number; hari: number; jam: string; label: string; suara: SuaraRingkas }
 export interface Periode { id: number; mulai: string; selesai: string; profilId: number; keterangan: string }
 export interface Libur { id: number; mulai: string; selesai: string; keterangan: string }
 export interface Riwayat {
@@ -67,6 +69,7 @@ export interface Riwayat {
 export interface BelHariIni {
   jadwalId: number; jam: string; waktu: string; label: string
   jenisBel: { id: number; nama: string; warna: string } | null; sudah: boolean
+  pengumuman: SuaraRingkas | null
 }
 export interface Status {
   sekarang: string; tanggal: string; hari: number; profil: Profil | null; libur: Libur | null
@@ -90,7 +93,7 @@ export interface FileJadwal {
   jenisBel: { nama: string; warna: string }[]
   jadwal: { hari: number; jam: string; jenisBel: string; label: string }[]
 }
-export interface HasilPeriksa { nama: string; jumlahBel: number; jenisBelTakDikenal: string[]; namaTersedia: string }
+export interface HasilPeriksa { nama: string; jumlahBel: number; jenisBelTakDikenal: string[]; namaTersedia: string; pengumumanTakDitemukan: string[] }
 export type Pemetaan = Record<string, { jenisBelId: number } | { baru: true }>
 export interface Template { id: number; nama: string; jumlahBel: number; hari: number[]; dibuat: string; data?: FileJadwal }
 export interface ParameterPembuat {
@@ -107,6 +110,7 @@ export interface IsiGabung { jenisBel: string; label: string }
 export interface BarisGabung { hari: number; jam: string; status: StatusGabung; lama: IsiGabung | null; baru: IsiGabung }
 export interface HasilPeriksaGabung {
   jenisBelTakDikenal: string[]
+  pengumumanTakDitemukan: string[]
   ringkasan: { baru: number; kembar: number; bentrok: number }
   baris: BarisGabung[]
 }

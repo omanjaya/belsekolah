@@ -30,6 +30,8 @@ type Bel struct {
 	Jam      string `json:"jam"`
 	JenisBel string `json:"jenisBel"`
 	Label    string `json:"label"`
+	// Pengumuman: nama suara pengumuman dari pustaka suara; kosong berarti tanpa pengumuman.
+	Pengumuman string `json:"pengumuman,omitempty"`
 }
 
 type Data struct {
@@ -115,6 +117,9 @@ func (d Data) Validasi() error {
 		}
 		if utf8.RuneCountInString(strings.TrimSpace(b.Label)) > 100 {
 			return salah("bel ke-%d: label maksimal 100 karakter", i+1)
+		}
+		if utf8.RuneCountInString(strings.TrimSpace(b.Pengumuman)) > 100 {
+			return salah("bel ke-%d: pengumuman maksimal 100 karakter", i+1)
 		}
 		if !jenis[strings.ToLower(strings.TrimSpace(b.JenisBel))] {
 			return salah("bel ke-%d: jenis bel %q tidak ada di daftar jenis bel", i+1, b.JenisBel)

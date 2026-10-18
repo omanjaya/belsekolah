@@ -124,6 +124,11 @@
     {#if langkah === 'pemetaan' && hasil}
       <PemetaanJenis nama={hasil.jenisBelTakDikenal} {jenisBel} bind:pilihan awalanId="tb-peta" />
     {:else if langkah === 'pratinjau' && hasil}
+      {#if (hasil.pengumumanTakDitemukan ?? []).length > 0}
+      <p class="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        Pengumuman tidak ditemukan di pustaka: {(hasil.pengumumanTakDitemukan ?? []).join(', ')} — dikosongkan.
+      </p>
+      {/if}
       <PratinjauGabung {hasil} bind:timpa />
     {/if}
 

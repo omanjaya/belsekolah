@@ -37,6 +37,16 @@ type fakeSumber struct {
 	tercatat map[string]map[int64]bool
 	riwayat  []store.Riwayat
 	urutan   []store.Audio
+	audio    map[int64]store.Audio // untuk GetAudio; id yang tak ada -> error
+}
+
+func (f *fakeSumber) GetAudio(_ context.Context, id int64) (store.Audio, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if a, ok := f.audio[id]; ok {
+		return a, nil
+	}
+	return store.Audio{}, store.ErrTidakAda
 }
 
 func (f *fakeSumber) LoadDataJadwal(context.Context) (schedule.Data, error) {

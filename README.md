@@ -4,7 +4,7 @@ Aplikasi bel sekolah otomatis (Go) dengan antarmuka web, berjalan di mini PC Deb
 
 ## Ringkasan
 
-Bel Sekolah membunyikan bel secara otomatis sesuai jadwal (per hari, per profil jadwal, dengan hari libur dan periode khusus), memutar suara lewat `mpv`, dan bisa membuat pengumuman suara (TTS) lewat `edge-tts`. Tombol "Tambah banyak" di halaman Jadwal menggabungkan bel dari ketikan/tempelan, template, file, atau profil lain ke profil yang dibuka, dengan pratinjau bentrok. Admin mengelola semuanya lewat antarmuka web yang nyaman dipakai di HP: beranda dan bel manual/darurat, jadwal, profil dan libur, suara dan jenis bel, riwayat, serta pengaturan (password, backup, restore). Backend Go dengan SQLite; frontend Svelte 5 yang hasil build-nya tertanam di binary (`internal/webui/dist`).
+Bel Sekolah membunyikan bel secara otomatis sesuai jadwal (per hari, per profil jadwal, dengan hari libur dan periode khusus), memutar suara lewat `mpv`, dan bisa membuat pengumuman suara (TTS) lewat `edge-tts`. Tombol "Tambah banyak" di halaman Jadwal menggabungkan bel dari ketikan/tempelan, template, file, atau profil lain ke profil yang dibuka, dengan pratinjau bentrok. Setiap bel bisa punya pengumuman suara sendiri yang diisi otomatis dari keterangannya (suara bernama "{keterangan} dimulai"), dan tombol "Isi pengumuman otomatis" mengisi banyak bel sekaligus. Admin mengelola semuanya lewat antarmuka web yang nyaman dipakai di HP: beranda dan bel manual/darurat, jadwal, profil dan libur, suara dan jenis bel, riwayat, serta pengaturan (password, backup, restore). Backend Go dengan SQLite; frontend Svelte 5 yang hasil build-nya tertanam di binary (`internal/webui/dist`).
 
 ## Pengembangan
 

@@ -215,6 +215,9 @@
         {#if status.berikutnya}
           <p class="text-4xl font-bold tabular-nums text-slate-900">{status.berikutnya.jam}</p>
           <p class="mt-1 text-lg text-slate-800">{namaBel(status.berikutnya)}</p>
+          {#if status.berikutnya.pengumuman}
+            <p class="text-sm text-slate-600">+ {status.berikutnya.pengumuman.nama}</p>
+          {/if}
           {#if status.berikutnya.jenisBel}
             <p class="mt-1 flex items-center gap-2 text-slate-600">
               <span class="size-3 rounded-full" style="background-color: {status.berikutnya.jenisBel.warna}" aria-hidden="true"></span>

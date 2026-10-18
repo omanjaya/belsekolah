@@ -18,6 +18,36 @@ func contoh() Data {
 	return d
 }
 
+func TestPengumuman_BacaTulisOmitempty(t *testing.T) {
+	d := contoh()
+	d.Jadwal[0].Pengumuman = "Jam ke-1 dimulai"
+	b, err := json.Marshal(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	if !strings.Contains(s, `"pengumuman":"Jam ke-1 dimulai"`) {
+		t.Fatalf("pengumuman tidak tertulis: %s", s)
+	}
+	if strings.Count(s, `"pengumuman"`) != 1 {
+		t.Fatalf("omitempty gagal: %s", s)
+	}
+	got, err := Baca(b)
+	if err != nil || got.Jadwal[0].Pengumuman != "Jam ke-1 dimulai" || got.Jadwal[1].Pengumuman != "" {
+		t.Fatalf("Baca = %+v err=%v", got.Jadwal, err)
+	}
+}
+
+func TestPengumuman_TerlaluPanjang(t *testing.T) {
+	d := contoh()
+	d.Jadwal[1].Pengumuman = strings.Repeat("é", 101)
+	harapTidakValid(t, d.Validasi(), "bel ke-2: pengumuman maksimal 100 karakter")
+	d.Jadwal[1].Pengumuman = "  " + strings.Repeat("é", 100) + "  "
+	if err := d.Validasi(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func harapTidakValid(t *testing.T, err error, sub string) {
 	t.Helper()
 	var v *ErrorValidasi

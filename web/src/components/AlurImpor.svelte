@@ -89,6 +89,11 @@
       {#if hasil.jenisBelTakDikenal.length > 0}
         <PemetaanJenis nama={hasil.jenisBelTakDikenal} {jenisBel} bind:pilihan awalanId="impor-peta" />
       {/if}
+      {#if (hasil.pengumumanTakDitemukan ?? []).length > 0}
+      <p class="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        Pengumuman tidak ditemukan di pustaka: {(hasil.pengumumanTakDitemukan ?? []).join(', ')} — dikosongkan.
+      </p>
+      {/if}
     {/if}
     {#if pesanGalat}
       <p class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{pesanGalat}</p>

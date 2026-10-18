@@ -29,6 +29,7 @@ type Sumber interface {
 	JadwalTercatat(ctx context.Context, tanggal string) (map[int64]bool, error)
 	InsertRiwayat(ctx context.Context, r store.Riwayat) error
 	UrutanBel(ctx context.Context, jenisBelID int64) ([]store.Audio, error)
+	GetAudio(ctx context.Context, id int64) (store.Audio, error)
 }
 
 type Pemutar interface {
@@ -76,6 +77,8 @@ type StatusBel struct {
 	JenisBelID int64
 	Label      string
 	Sudah      bool
+	// PengumumanID: 0 = tanpa pengumuman.
+	PengumumanID int64
 }
 
 // Status adalah gambaran jadwal hari ini menurut pemeriksaan terakhir.
@@ -101,7 +104,7 @@ func (s *Scheduler) Status() Status {
 	for _, b := range s.hasil.Bel {
 		st.Bel = append(st.Bel, StatusBel{
 			JadwalID: b.JadwalID, Waktu: b.Waktu, JenisBelID: b.JenisBelID,
-			Label: b.Label, Sudah: s.sudah[b.JadwalID],
+			Label: b.Label, Sudah: s.sudah[b.JadwalID], PengumumanID: b.PengumumanID,
 		})
 	}
 	return st
@@ -199,7 +202,7 @@ func (s *Scheduler) bunyikan(ctx context.Context, b schedule.Bel) {
 	s.putar(ctx, store.Riwayat{
 		Waktu: b.Waktu, JadwalID: b.JadwalID, JenisBelID: b.JenisBelID,
 		Label: b.Label, Sumber: store.SumberJadwal,
-	}, player.Biasa)
+	}, player.Biasa, b.PengumumanID)
 }
 
 // BunyikanManual membunyikan jenis bel di luar jadwal dan mencatatnya di riwayat.
@@ -212,12 +215,20 @@ func (s *Scheduler) BunyikanManual(ctx context.Context, jenisBelID int64, label 
 	s.log.Info("bel manual", "label", label, "darurat", darurat)
 	s.putar(ctx, store.Riwayat{
 		Waktu: s.clock.Now(), JenisBelID: jenisBelID, Label: label, Sumber: sumber,
-	}, prioritas)
+	}, prioritas, 0)
 }
 
-func (s *Scheduler) putar(ctx context.Context, r store.Riwayat, prioritas player.Prioritas) {
+func (s *Scheduler) putar(ctx context.Context, r store.Riwayat, prioritas player.Prioritas, pengumumanID int64) {
+	files := s.FileUrutan(ctx, r.JenisBelID)
+	if pengumumanID != 0 {
+		if a, err := s.sumber.GetAudio(ctx, pengumumanID); err != nil {
+			s.log.Error("muat suara pengumuman gagal", "audio", pengumumanID, "err", err)
+		} else {
+			files = append(files, filepath.Join(s.audioDir, filepath.Base(a.File)))
+		}
+	}
 	s.pemutar.Play(player.Permintaan{
-		Files:     s.FileUrutan(ctx, r.JenisBelID),
+		Files:     files,
 		Prioritas: prioritas,
 		Selesai: func(status player.Status, pesan string) {
 			r.Status, r.Pesan = string(status), pesan

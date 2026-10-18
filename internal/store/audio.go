@@ -139,6 +139,14 @@ func (s *Store) DeleteAudio(ctx context.Context, id int64) (Audio, error) {
 	if a.Sumber == "bawaan" {
 		return Audio{}, dipakai("suara bawaan tidak bisa dihapus")
 	}
+	var n int
+	if err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM jadwal WHERE pengumuman_audio_id = ?`, id).Scan(&n); err != nil {
+		return Audio{}, err
+	}
+	if n > 0 {
+		return Audio{}, dipakai(fmt.Sprintf("suara masih dipakai oleh %d bel di jadwal", n))
+	}
 	err = terjemahkan(
 		cekDiubah(s.db.ExecContext(ctx, `DELETE FROM audio WHERE id = ?`, id)),
 		dipakai("suara masih dipakai oleh jenis bel"))

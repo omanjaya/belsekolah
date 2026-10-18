@@ -44,6 +44,8 @@ type jadwalDTO struct {
 	Jam        string `json:"jam"`
 	JenisBelID int64  `json:"jenisBelId"`
 	Label      string `json:"label"`
+	// PengumumanID: null berarti tanpa pengumuman (0 di dalam).
+	PengumumanID *int64 `json:"pengumumanId"`
 }
 
 type periodeDTO struct {
@@ -79,6 +81,8 @@ type belHariIniDTO struct {
 	Label    string              `json:"label"`
 	JenisBel *jenisBelRingkasDTO `json:"jenisBel"`
 	Sudah    bool                `json:"sudah"`
+	// Pengumuman: suara pengumuman bel ini, null bila tidak ada.
+	Pengumuman *store.SuaraRingkas `json:"pengumuman"`
 }
 
 type statusDTO struct {
@@ -128,11 +132,20 @@ func keAudioDTO(a store.Audio) audioDTO {
 }
 
 func keJadwalDTO(j schedule.Jadwal) jadwalDTO {
-	return jadwalDTO{ID: j.ID, ProfilID: j.ProfilID, Hari: j.Hari, Jam: j.Jam, JenisBelID: j.JenisBelID, Label: j.Label}
+	d := jadwalDTO{ID: j.ID, ProfilID: j.ProfilID, Hari: j.Hari, Jam: j.Jam, JenisBelID: j.JenisBelID, Label: j.Label}
+	if j.PengumumanID != 0 {
+		id := j.PengumumanID
+		d.PengumumanID = &id
+	}
+	return d
 }
 
 func (d jadwalDTO) keJadwal() schedule.Jadwal {
-	return schedule.Jadwal{ID: d.ID, ProfilID: d.ProfilID, Hari: d.Hari, Jam: d.Jam, JenisBelID: d.JenisBelID, Label: d.Label}
+	j := schedule.Jadwal{ID: d.ID, ProfilID: d.ProfilID, Hari: d.Hari, Jam: d.Jam, JenisBelID: d.JenisBelID, Label: d.Label}
+	if d.PengumumanID != nil {
+		j.PengumumanID = *d.PengumumanID
+	}
+	return j
 }
 
 func kePeriodeDTO(p schedule.Periode) periodeDTO {

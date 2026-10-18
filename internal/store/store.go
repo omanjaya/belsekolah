@@ -47,7 +47,39 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("migrasi skema: %w", err)
 	}
+	if err := migrasi(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrasi skema: %w", err)
+	}
 	return &Store{db: db}, nil
+}
+
+// migrasi menambah kolom yang belum ada pada database lama. Idempoten.
+func migrasi(db *sql.DB) error {
+	ada, err := adaKolom(db, "jadwal", "pengumuman_audio_id")
+	if err != nil || ada {
+		return err
+	}
+	_, err = db.Exec(`ALTER TABLE jadwal ADD COLUMN pengumuman_audio_id INTEGER REFERENCES audio(id) ON DELETE RESTRICT`)
+	return err
+}
+
+func adaKolom(db *sql.DB, tabel, kolom string) (bool, error) {
+	rows, err := db.Query(`SELECT name FROM pragma_table_info(?)`, tabel)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			return false, err
+		}
+		if n == kolom {
+			return true, nil
+		}
+	}
+	return false, rows.Err()
 }
 
 // dsn menyusun DSN SQLite; path di-escape agar karakter seperti ?, #, % dan spasi aman.

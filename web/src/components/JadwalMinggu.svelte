@@ -1,7 +1,8 @@
 <script lang="ts">
+  import { Volume2 } from '@lucide/svelte'
   import { NAMA_HARI } from '../lib/format'
 
-  type BelMinggu = { kunci: string | number; hari: number; jam: string; label: string; jenisNama: string; warna: string }
+  type BelMinggu = { kunci: string | number; hari: number; jam: string; label: string; jenisNama: string; warna: string; pengumuman?: string }
 
   let { bel, hariSekolah = [1, 2, 3, 4, 5], onpilih, padat = false }: {
     bel: BelMinggu[]
@@ -42,11 +43,13 @@
                   onclick={() => onpilih(b.kunci)}
                 >
                   <span class="font-bold tabular-nums">{jam5(b.jam)}</span>
+                  {#if b.pengumuman}<Volume2 role="img" class="ml-1 inline size-3.5 text-slate-500" aria-label="dengan pengumuman {b.pengumuman}" />{/if}
                   <span class="block truncate text-slate-700">{b.label || b.jenisNama}</span>
                 </button>
               {:else}
                 <div class={kelas} style="border-left-color: {b.warna}">
                   <span class="font-bold tabular-nums">{jam5(b.jam)}</span>
+                  {#if b.pengumuman}<Volume2 role="img" class="ml-1 inline size-3.5 text-slate-500" aria-label="dengan pengumuman {b.pengumuman}" />{/if}
                   <span class="block truncate text-slate-700">{b.label || b.jenisNama}</span>
                 </div>
               {/if}

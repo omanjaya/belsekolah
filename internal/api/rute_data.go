@@ -15,6 +15,10 @@ func (s *server) daftarRuteData(rute func(pola string, h http.HandlerFunc)) {
 	rute("POST /api/impor/periksa", s.periksaImpor)
 	rute("POST /api/impor", s.impor)
 
+	rute("GET /api/pengumuman/cocok", s.cocokPengumuman)
+	rute("GET /api/profil/{id}/pengumuman/saran", s.saranPengumuman)
+	rute("POST /api/profil/{id}/pengumuman/terapkan", s.terapkanPengumuman)
+
 	rute("GET /api/template", s.listTemplate)
 	rute("POST /api/template", s.buatTemplate)
 	rute("POST /api/template/buat", s.buatDariParameter)
